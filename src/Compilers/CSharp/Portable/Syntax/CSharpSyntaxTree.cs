@@ -103,10 +103,25 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             get
             {
-                Debug.Assert(this.HasCompilationUnitRoot);
+                Debug.Assert(HasCompilationUnitRoot);
 
-                return (Options.Kind == SourceCodeKind.Interactive || Options.Kind == SourceCodeKind.Script) &&
-                        this.GetCompilationUnitRoot().GetReferenceDirectives().Count > 0;
+                return Options.Kind == SourceCodeKind.Script && GetCompilationUnitRoot().GetReferenceDirectives().Count > 0;
+            }
+        }
+
+        internal bool HasReferenceOrLoadDirectives
+        {
+            get
+            {
+                Debug.Assert(HasCompilationUnitRoot);
+
+                if (Options.Kind == SourceCodeKind.Script)
+                {
+                    var compilationUnitRoot = GetCompilationUnitRoot();
+                    return compilationUnitRoot.GetReferenceDirectives().Count > 0 || compilationUnitRoot.GetLoadDirectives().Count > 0;
+                }
+
+                return false;
             }
         }
 

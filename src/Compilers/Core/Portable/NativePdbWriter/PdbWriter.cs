@@ -747,9 +747,11 @@ namespace Microsoft.Cci
 
         private static bool s_MicrosoftDiaSymReaderNativeLoadFailed;
 
+        [DefaultDllImportSearchPaths(DllImportSearchPath.AssemblyDirectory)]
         [DllImport("Microsoft.DiaSymReader.Native.x86.dll", EntryPoint = "CreateSymWriter")]
         private extern static void CreateSymWriter32(ref Guid id, [MarshalAs(UnmanagedType.IUnknown)]out object symWriter);
 
+        [DefaultDllImportSearchPaths(DllImportSearchPath.AssemblyDirectory)]
         [DllImport("Microsoft.DiaSymReader.Native.amd64.dll", EntryPoint = "CreateSymWriter")]
         private extern static void CreateSymWriter64(ref Guid id, [MarshalAs(UnmanagedType.IUnknown)]out object symWriter);
 
@@ -843,7 +845,7 @@ namespace Microsoft.Cci
                 try
                 {
                     Debug.Assert(BitConverter.IsLittleEndian);
-                    ((ISymUnmanagedWriter6)_symWriter).SetSignature(BitConverter.ToUInt32(id.Stamp, 0), new Guid(id.Guid));
+                    ((ISymUnmanagedWriter100)_symWriter).SetSignature(BitConverter.ToUInt32(id.Stamp, 0), new Guid(id.Guid));
                 }
                 catch (Exception ex)
                 {
@@ -1374,7 +1376,7 @@ namespace Microsoft.Cci
         }
 
         [Conditional("DEBUG")]
-        // Used to catch cases where file2definitions contain nonwriteable definitions early
+        // Used to catch cases where file2definitions contain nonwritable definitions early
         // If left unfixed, such scenarios will lead to crashes if happen in winmdobj projects
         public void AssertAllDefinitionsHaveTokens(MultiDictionary<DebugSourceDocument, DefinitionWithLocation> file2definitions)
         {
