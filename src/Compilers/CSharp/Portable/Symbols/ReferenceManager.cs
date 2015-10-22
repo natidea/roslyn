@@ -337,6 +337,9 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                     BoundInputAssembly[] bindingResult = Bind(
                         explicitAssemblyData,
+                        modules,
+                        references,
+                        referenceMap,
                         compilation.Options.MetadataReferenceResolver,
                         compilation.Options.MetadataImportOptions,
                         out allAssemblyData,
@@ -354,6 +357,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                     Dictionary<MetadataReference, int> referencedAssembliesMap, referencedModulesMap;
                     ImmutableArray<ImmutableArray<string>> aliasesOfReferencedAssemblies;
                     BuildReferencedAssembliesAndModulesMaps(
+                        bindingResult,
                         references,
                         referenceMap,
                         modules.Length,

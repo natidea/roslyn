@@ -20,6 +20,12 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
         private static readonly CSharpCompilationOptions s_signedDll = 
             TestOptions.ReleaseDll.WithCryptoPublicKey(TestResources.TestKeys.PublicKey_ce65828c82a341f2);
 
+        private static IEnumerable<string> GetAssemblyAliases(Compilation compilation)
+        {
+            return compilation.GetBoundReferenceManager().GetReferencedAssemblyAliases().
+               Select(t => $"{t.Item1.Identity.Name}{(t.Item2.IsEmpty ? "" : ": " + string.Join(",", t.Item2))}");
+        }
+
         [Fact]
         public void WinRtCompilationReferences()
         {
@@ -2176,21 +2182,244 @@ public class Source
         }
 
         [Fact]
+        public void ReferenceDirective_RecursiveReferenceWithNoAliases()
+        {
+            // c - b (alias X) 
+            //   - a (via #r) -> b
+            var bRef = CreateCompilationWithMscorlib45("public class B { }", assemblyName: "B").EmitToImageReference();
+            var aRef = CreateCompilationWithMscorlib45("public class A : B { }", new[] { bRef }, assemblyName: "A").EmitToImageReference();
+
+            var source = @"
+#r ""a""
+new B()
+";
+
+            var c = CreateSubmission(source, new[] { bRef.WithAliases(ImmutableArray.Create("X")), aRef }, TestOptions.ReleaseDll.WithMetadataReferenceResolver(
+                new TestMetadataReferenceResolver(assemblyNames: new Dictionary<string, PortableExecutableReference>()
+                {
+                    { "a", (PortableExecutableReference)aRef.WithProperties(MetadataReferenceProperties.Assembly.WithRecursiveAliases(true)) }
+                })));
+
+            c.VerifyDiagnostics();
+
+            AssertEx.Equal(new[] 
+            {
+                "mscorlib",
+                "B: X,global",
+                "A"
+            }, GetAssemblyAliases(c));
+        }
+
+        [Fact]
+        public void ReferenceDirective_NonRecursiveReferenceWithNoAliases()
+        {
+            // c - b (alias X) 
+            //   - a (via #r) -> b
+            var bRef = CreateCompilationWithMscorlib45("public class B { }", assemblyName: "B").EmitToImageReference();
+            var aRef = CreateCompilationWithMscorlib45("public class A : B { }", new[] { bRef }, assemblyName: "A").EmitToImageReference();
+
+            var source = @"
+#r ""a""
+new B()
+";
+
+            var c = CreateSubmission(source, new[] { bRef.WithAliases(ImmutableArray.Create("X")), aRef }, TestOptions.ReleaseDll.WithMetadataReferenceResolver(
+                new TestMetadataReferenceResolver(assemblyNames: new Dictionary<string, PortableExecutableReference>()
+                {
+                    { "a", (PortableExecutableReference)aRef.WithProperties(MetadataReferenceProperties.Assembly) }
+                })));
+
+            c.VerifyDiagnostics(
+                // (3,5): error CS0246: The type or namespace name 'B' could not be found (are you missing a using directive or an assembly reference?)
+                // new B()
+                Diagnostic(ErrorCode.ERR_SingleTypeNameNotFound, "B").WithArguments("B"));
+
+            AssertEx.Equal(new[]
+            {
+                "mscorlib",
+                "B: X",
+                "A"
+            }, GetAssemblyAliases(c));
+        }
+
+        [Fact]
+        public void ReferenceDirective_RecursiveReferenceWithAlias1()
+        {
+            // c - b (alias X) 
+            //   - a 
+            //   - a (recursive alias Y) -> b
+            var bRef = CreateCompilationWithMscorlib45("public class B { }", assemblyName: "B").EmitToImageReference();
+            var aRef = CreateCompilationWithMscorlib45("public class A : B { }", new[] { bRef }, assemblyName: "A").EmitToImageReference();
+
+            var source = @"
+extern alias X;
+extern alias Y;
+
+public class P
+{
+   A a = new Y::A();
+   X::B b = new Y::B();
+}
+";
+
+            var c = CreateCompilation(source, new[]
+            {
+                bRef.WithAliases(ImmutableArray.Create("X")),
+                aRef,
+                aRef.WithProperties(MetadataReferenceProperties.Assembly.WithAliases(ImmutableArray.Create("Y")).WithRecursiveAliases(true)),
+                MscorlibRef,
+            }, TestOptions.ReleaseDll);
+
+            c.VerifyDiagnostics();
+
+            AssertEx.Equal(new[]
+            {
+                "B: X,Y",
+                "A: global,Y",
+                "mscorlib: global,Y"
+            }, GetAssemblyAliases(c));
+        }
+
+        [Fact]
+        public void ReferenceDirective_RecursiveReferenceWithAlias2()
+        {
+            // c - b (alias X) 
+            //   - a (recursive alias Y) -> b
+            //   - a 
+            var bRef = CreateCompilationWithMscorlib45("public class B { }", assemblyName: "B").EmitToImageReference();
+            var aRef = CreateCompilationWithMscorlib45("public class A : B { }", new[] { bRef }, assemblyName: "A").EmitToImageReference();
+
+            var source = @"
+extern alias X;
+extern alias Y;
+
+public class P
+{
+   A a = new Y::A();
+   X::B b = new Y::B();
+}
+";
+
+            var c = CreateCompilation(source, new[]
+            {
+                bRef.WithAliases(ImmutableArray.Create("X")),
+                aRef.WithProperties(MetadataReferenceProperties.Assembly.WithAliases(ImmutableArray.Create("Y")).WithRecursiveAliases(true)),
+                aRef,
+                MscorlibRef,
+            }, TestOptions.ReleaseDll);
+
+            c.VerifyDiagnostics();
+
+            AssertEx.Equal(new[]
+            {
+                "B: X,Y",
+                "A: global,Y",
+                "mscorlib: global,Y"
+            }, GetAssemblyAliases(c));
+        }
+
+        [Fact]
+        public void ReferenceDirective_RecursiveReferenceWithAlias3()
+        {
+            // c - b (alias X) 
+            //   - a (recursive alias Y) -> b
+            //   - a 
+            var bRef = CreateCompilationWithMscorlib45("public class B { }", assemblyName: "B").EmitToImageReference();
+            var aRef = CreateCompilationWithMscorlib45("public class A : B { }", new[] { bRef }, assemblyName: "A").EmitToImageReference();
+
+            var source = @"
+extern alias X;
+extern alias Y;
+
+public class P
+{
+   A a = new Y::A();
+   X::B b = new Y::B();
+}
+";
+
+            var c = CreateCompilation(source, new[]
+            {
+                bRef.WithAliases(ImmutableArray.Create("X")),
+                aRef,
+                aRef.WithProperties(MetadataReferenceProperties.Assembly.WithAliases(ImmutableArray.Create("Y")).WithRecursiveAliases(true)),
+                aRef.WithProperties(MetadataReferenceProperties.Assembly.WithAliases(ImmutableArray.Create("Y")).WithRecursiveAliases(true)),
+                aRef,
+                MscorlibRef,
+            }, TestOptions.ReleaseDll);
+
+            c.VerifyDiagnostics();
+
+            AssertEx.Equal(new[]
+            {
+                "B: X,Y",
+                "A: global,Y",
+                "mscorlib: global,Y"
+            }, GetAssemblyAliases(c));
+        }
+
+        [Fact]
+        public void ReferenceDirective_RecursiveReferenceWithAlias4()
+        {
+            // c - b (alias X) 
+            //   - a (recursive alias Y) -> b
+            //   - d (recursive alias Z) -> a 
+            var bRef = CreateCompilationWithMscorlib45("public class B { }", assemblyName: "B").EmitToImageReference();
+            var aRef = CreateCompilationWithMscorlib45("public class A : B { }", new[] { bRef }, assemblyName: "A").EmitToImageReference();
+            var dRef = CreateCompilationWithMscorlib45("public class D : A { }", new[] { aRef, bRef }, assemblyName: "D").EmitToImageReference();
+
+            var source = @"
+extern alias X;
+extern alias Y;
+extern alias Z;
+
+public class P
+{
+   Z::A a = new Y::A();
+   X::B b = new Y::B();
+   Z::B d = new X::B();
+}
+";
+
+            var c = CreateCompilation(source, new[]
+            {
+                bRef.WithAliases(ImmutableArray.Create("X")),
+                aRef.WithProperties(MetadataReferenceProperties.Assembly.WithAliases(ImmutableArray.Create("Y", "Y")).WithRecursiveAliases(true)),
+                dRef.WithProperties(MetadataReferenceProperties.Assembly.WithAliases(ImmutableArray.Create("Z")).WithRecursiveAliases(true)),
+                MscorlibRef,
+            }, TestOptions.ReleaseDll);
+
+            c.VerifyDiagnostics();
+
+            AssertEx.Equal(new[]
+            {
+                "B: X,Y,Y,Z",
+                "A: Y,Y,Z",
+                "D: Z",
+                "mscorlib: global,Y,Y,Z"
+            }, GetAssemblyAliases(c));
+        }
+
+        [Fact]
         public void MissingAssemblyResolution1()
         {
             // c - a -> b
             var bRef = CreateCompilationWithMscorlib("public class B { }", assemblyName: "B").EmitToImageReference();
             var aRef = CreateCompilationWithMscorlib("public class A : B { }", new[] { bRef }, assemblyName: "A").EmitToImageReference();
 
-            var c = CreateCompilationWithMscorlib("public class C : A { }", new[] { aRef },
-                TestOptions.ReleaseDll.WithMetadataReferenceResolver(new TestMissingMetadataReferenceResolver(new Dictionary<string, MetadataReference>
-                {
-                    { "B", bRef }
-                })));
+            var resolver = new TestMissingMetadataReferenceResolver(new Dictionary<string, MetadataReference>
+            {
+                { "B", bRef }
+            });
+
+            var c = CreateCompilationWithMscorlib("public class C : A { }", new[] { aRef }, TestOptions.ReleaseDll.WithMetadataReferenceResolver(resolver));
 
             c.VerifyEmitDiagnostics();
 
             Assert.Equal("B", ((AssemblySymbol)c.GetAssemblyOrModuleSymbol(bRef)).Name);
+
+            resolver.VerifyResolutionAttempts(
+                "A -> B, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null");
         }
 
         [Fact]
@@ -2200,6 +2429,11 @@ public class Source
             var bRef = CreateCompilationWithMscorlib("public class B { }", assemblyName: "B").EmitToImageReference();
             var aRef = CreateCompilationWithMscorlib("public class A : B { }", new[] { bRef }, assemblyName: "A").EmitToImageReference();
 
+            var resolver = new TestMissingMetadataReferenceResolver(new Dictionary<string, MetadataReference>
+            {
+                { "B", bRef.WithAliases(ImmutableArray.Create("X")) }
+            });
+
             var c = CreateCompilationWithMscorlib(@"
 extern alias X;
 
@@ -2207,13 +2441,12 @@ public class C : A
 { 
     X::B F() => null; 
 }
-", new[] { aRef },
-                TestOptions.ReleaseDll.WithMetadataReferenceResolver(new TestMissingMetadataReferenceResolver(new Dictionary<string, MetadataReference>
-                {
-                    { "B", bRef.WithAliases(ImmutableArray.Create("X")) }
-                })));
+", new[] { aRef }, TestOptions.ReleaseDll.WithMetadataReferenceResolver(resolver));
 
             c.VerifyEmitDiagnostics();
+
+            resolver.VerifyResolutionAttempts(
+                "A -> B, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null");
         }
 
         [Fact]
@@ -2231,6 +2464,12 @@ public class C : A
             var b3RefX = b3Ref.WithAliases(ImmutableArray.Create("X"));
             var b3RefY = b3Ref.WithAliases(ImmutableArray.Create("Y"));
 
+            var resolver = new TestMissingMetadataReferenceResolver(new Dictionary<string, MetadataReference>
+            {
+                { "B, 1.0.0.0", b3RefX },
+                { "B, 2.0.0.0", b3RefY },
+            });
+
             var c = CreateCompilationWithMscorlib(@"
 extern alias X;
 extern alias Y;
@@ -2240,11 +2479,7 @@ public class C : A
     X::B F() => new Y::B(); 
 }
 ", new[] { aRef, dRef },
-                TestOptions.ReleaseDll.WithMetadataReferenceResolver(new TestMissingMetadataReferenceResolver(new Dictionary<string, MetadataReference>
-                {
-                    { "B, 1.0.0.0", b3RefX },
-                    { "B, 2.0.0.0", b3RefY },
-                })));
+                TestOptions.ReleaseDll.WithMetadataReferenceResolver(resolver));
 
             c.VerifyEmitDiagnostics(
                 // (5,18): warning CS1701: Assuming assembly reference 
@@ -2256,6 +2491,10 @@ public class C : A
 
             Assert.Equal("B", ((AssemblySymbol)c.GetAssemblyOrModuleSymbol(b3RefY)).Name);
             Assert.Null(c.GetAssemblyOrModuleSymbol(b3RefX));
+
+            resolver.VerifyResolutionAttempts(
+                "D -> B, Version=2.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2",
+                "A -> B, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2");
         }
 
         [Fact]
@@ -2271,16 +2510,22 @@ public class C : A
             var aRef = CreateCompilationWithMscorlib(@"public interface A : B { }", new[] { b1Ref }, assemblyName: "A").EmitToImageReference();
             var dRef = CreateCompilationWithMscorlib(@"public interface D : B { }", new[] { b2Ref }, assemblyName: "D").EmitToImageReference();
 
+            var resolver = new TestMissingMetadataReferenceResolver(new Dictionary<string, MetadataReference>
+            {
+                { "B, 1.0.0.0", b1Ref },
+                { "B, 2.0.0.0", b2Ref },
+            });
+
             var c = CreateCompilationWithMscorlib(@"public interface C : A, D {  }", new[] { aRef, dRef },
-                TestOptions.ReleaseDll.WithMetadataReferenceResolver(new TestMissingMetadataReferenceResolver(new Dictionary<string, MetadataReference>
-                {
-                    { "B, 1.0.0.0", b1Ref },
-                    { "B, 2.0.0.0", b2Ref },
-                })));
+                TestOptions.ReleaseDll.WithMetadataReferenceResolver(resolver));
 
             c.VerifyEmitDiagnostics(
                 // error CS1704: An assembly with the same simple name 'B' has already been imported. Try removing one of the references (e.g. 'B') or sign them to enable side-by-side.
                 Diagnostic(ErrorCode.ERR_DuplicateImportSimple).WithArguments("B", "B"));
+
+            resolver.VerifyResolutionAttempts(
+                "D -> B, Version=2.0.0.0, Culture=neutral, PublicKeyToken=null",
+                "A -> B, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null");
         }
 
         [Fact]
@@ -2296,16 +2541,22 @@ public class C : A
             var aRef = CreateCompilationWithMscorlib(@"public interface A : B { }", new[] { b1Ref }, assemblyName: "A").EmitToImageReference();
             var dRef = CreateCompilationWithMscorlib(@"public interface D : B { }", new[] { b2Ref }, assemblyName: "D").EmitToImageReference();
 
+            var resolver = new TestMissingMetadataReferenceResolver(new Dictionary<string, MetadataReference>
+            {
+                { "B, 1.0.0.0", b3Ref },
+                { "B, 2.0.0.0", b4Ref },
+            });
+
             var c = CreateCompilationWithMscorlib(@"public interface C : A, D {  }", new[] { aRef, dRef },
-                TestOptions.ReleaseDll.WithMetadataReferenceResolver(new TestMissingMetadataReferenceResolver(new Dictionary<string, MetadataReference>
-                {
-                    { "B, 1.0.0.0", b3Ref },
-                    { "B, 2.0.0.0", b4Ref },
-                })));
+                TestOptions.ReleaseDll.WithMetadataReferenceResolver(resolver));
 
             c.VerifyEmitDiagnostics(
                 // error CS1704: An assembly with the same simple name 'B' has already been imported. Try removing one of the references (e.g. 'B') or sign them to enable side-by-side.
                 Diagnostic(ErrorCode.ERR_DuplicateImportSimple).WithArguments("B", "B"));
+
+            resolver.VerifyResolutionAttempts(
+                "D -> B, Version=2.0.0.0, Culture=neutral, PublicKeyToken=null",
+                "A -> B, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null");
         }
 
         [Fact]
@@ -2322,8 +2573,7 @@ public class C : A
                 TestOptions.ReleaseDll.WithMetadataReferenceResolver(resolver));
 
             c.VerifyDiagnostics();
-
-            Assert.Equal(0, resolver.ResolutionAttempts.Count);
+            resolver.VerifyResolutionAttempts();
         }
 
         [Fact]
@@ -2342,7 +2592,8 @@ public class C : A
                 // (1,18): error CS0012: The type 'D' is defined in an assembly that is not referenced. You must add a reference to assembly 'D, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null'.
                 Diagnostic(ErrorCode.ERR_NoTypeDef, "C").WithArguments("D", "D, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null"));
 
-            Assert.Equal(1, resolver.ResolutionAttempts.Count);
+            resolver.VerifyResolutionAttempts(
+                "A -> D, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null");
         }
 
         /// <summary>
@@ -2369,7 +2620,8 @@ public class C : A
                 // (1,18): error CS0012: The type 'D' is defined in an assembly that is not referenced. You must add a reference to assembly 'B, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null'.
                 Diagnostic(ErrorCode.ERR_NoTypeDef, "C").WithArguments("D", "B, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null"));
 
-            Assert.Equal(1, resolver.ResolutionAttempts.Count);
+            resolver.VerifyResolutionAttempts(
+                "A -> B, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null");
         }
 
         [Fact]
@@ -2392,7 +2644,9 @@ public class C : A
             c.VerifyEmitDiagnostics();
 
             Assert.Equal("D", ((AssemblySymbol)c.GetAssemblyOrModuleSymbol(dRef)).Name);
-            Assert.Equal(1, resolver.ResolutionAttempts.Count);
+
+            resolver.VerifyResolutionAttempts(
+                "B -> D, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null");
         }
 
         [Fact]
@@ -2423,6 +2677,11 @@ public class C : A
 
             Assert.Equal("B", ((AssemblySymbol)c.GetAssemblyOrModuleSymbol(bRef)).Name);
             Assert.Equal("D", ((AssemblySymbol)c.GetAssemblyOrModuleSymbol(dRef)).Name);
+
+            // We don't resolve one assembly reference identity twice, even if the requesting definition is different.
+            resolver.VerifyResolutionAttempts(
+                "A -> D, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null",
+                "M.netmodule -> B, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null");
         }
 
         /// <summary>
@@ -2457,13 +2716,13 @@ public class C : A
                     "B, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2", "A", 
                     "B, Version=3.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2", "B"));
 
-            Assert.Equal(0, resolver.ResolutionAttempts.Count);
-
             Assert.Equal(
                 "B, Version=3.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2", 
                 ((AssemblySymbol)c.GetAssemblyOrModuleSymbol(b3Ref)).Identity.GetDisplayName());
 
             Assert.Null((AssemblySymbol)c.GetAssemblyOrModuleSymbol(b2Ref));
+
+            resolver.VerifyResolutionAttempts();
         }
 
         /// <summary>
@@ -2520,7 +2779,9 @@ public class C : A
                     "B, Version=2.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2", 
                     "B", "B, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2"));
 
-            Assert.Equal(2, resolverC.ResolutionAttempts.Count);
+            resolverC.VerifyResolutionAttempts(
+                "A -> D, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2",
+                "A -> E, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2");
         }
 
         /// <summary>
@@ -2573,7 +2834,9 @@ public class C : A
                     "B, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2", "E", 
                     "B, Version=2.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2", "B"));
 
-            Assert.Equal(2, resolverC.ResolutionAttempts.Count);
+            resolverC.VerifyResolutionAttempts(
+                "A -> D, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2",
+                "A -> E, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2");
         }
 
         [Fact]
@@ -2614,6 +2877,12 @@ public class C : A
             Assert.Equal(
                "B, Version=2.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2",
                ((AssemblySymbol)c.GetAssemblyOrModuleSymbol(b2Ref)).Identity.GetDisplayName());
+
+            resolverC.VerifyResolutionAttempts(
+                "A -> D, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2",
+                "A -> B, Version=2.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2",
+                "A -> E, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2",
+                "A -> B, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2");
         }
 
         [Fact]
@@ -2667,8 +2936,6 @@ public class C : A
                     "B, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2", "E", 
                     "B, Version=3.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2", "B"));
 
-            Assert.Equal(4, resolverC.ResolutionAttempts.Count);
-
             AssertEx.Equal(new[]
             {
                 "mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089",
@@ -2678,6 +2945,12 @@ public class C : A
                 "E, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2",
                 "B, Version=3.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2"
             }, c.GetBoundReferenceManager().ReferencedAssemblies.Select(a => a.Identity.GetDisplayName()));
+
+            resolverC.VerifyResolutionAttempts(
+                "A -> D, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2",
+                "A -> B, Version=2.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2",
+                "A -> E, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2",
+                "A -> B, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ce65828c82a341f2");
         }
     }
 }
