@@ -1140,7 +1140,7 @@ BC30491: Expression does not produce a value.
         End Sub
 
         <Fact>
-        Public Sub FlowAnalysis_Warning_InterpoledVariableUsedBeforeBeingAssigned()
+        Public Sub FlowAnalysis_Warning_InterpolatedVariableUsedBeforeBeingAssigned()
 
             Dim compilation = CreateCompilationWithMscorlibAndVBRuntimeAndReferences(
 <compilation>
@@ -1837,7 +1837,7 @@ BC37251: There were one or more errors emitting a call to FormattableStringFacto
         End Sub
 
         <Fact>
-        Public Sub Lowering_ERR_InterpolatedStringFactoryError_CreateReturnIsNotConvertable()
+        Public Sub Lowering_ERR_InterpolatedStringFactoryError_CreateReturnIsNotConvertible()
 
             Dim compilation = CreateCompilationWithMscorlibAndVBRuntimeAndReferences(
 <compilation>
@@ -1919,7 +1919,7 @@ BC37251: There were one or more errors emitting a call to FormattableStringFacto
         End Sub
 
         <Fact>
-        Public Sub Lowering_ERR_InterpolatedStringFactoryError_ArgArrayIsNotConvertable()
+        Public Sub Lowering_ERR_InterpolatedStringFactoryError_ArgArrayIsNotConvertible()
 
             Dim compilation = CreateCompilationWithMscorlibAndVBRuntimeAndReferences(
 <compilation>

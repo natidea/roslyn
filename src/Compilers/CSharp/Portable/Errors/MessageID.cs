@@ -111,7 +111,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         IDS_FeatureInterpolatedStrings = MessageBase + 12702,
         IDS_OperationCausedStackOverflow = MessageBase + 12703,
         IDS_AwaitInCatchAndFinally = MessageBase + 12704,
-
+        IDS_FeatureReadonlyAutoImplementedProperties = MessageBase + 12705,
     }
 
     // Message IDs may refer to strings that need to be localized.
@@ -145,6 +145,15 @@ namespace Microsoft.CodeAnalysis.CSharp
             return new LocalizableErrorArgument(id);
         }
 
+        internal static string RequiredFeature(this MessageID feature)
+        {
+            switch (feature)
+            {
+                default:
+                    return null;
+            }
+        }
+
         internal static LanguageVersion RequiredVersion(this MessageID feature)
         {
             // Based on CSourceParser::GetFeatureUsage from SourceParser.cpp.
@@ -163,6 +172,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 case MessageID.IDS_FeatureUsingStatic:
                 case MessageID.IDS_FeatureInterpolatedStrings:
                 case MessageID.IDS_AwaitInCatchAndFinally:
+                case MessageID.IDS_FeatureReadonlyAutoImplementedProperties:
                     return LanguageVersion.CSharp6;
 
                 // C# 5 features.

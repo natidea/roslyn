@@ -68,7 +68,7 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.Formatting
             }
 
             // don't auto format after these keys if smart indenting is not on.
-            if  ((ch == '#' || ch == 'n') && !smartIndentOn)
+            if ((ch == '#' || ch == 'n') && !smartIndentOn)
             {
                 return false;
             }
@@ -205,7 +205,7 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.Formatting
 
         private static async Task<SyntaxToken> GetTokenBeforeTheCaretAsync(Document document, int caretPosition, CancellationToken cancellationToken)
         {
-            var tree = await document.GetCSharpSyntaxTreeAsync(cancellationToken).ConfigureAwait(false);
+            var tree = await document.GetSyntaxTreeAsync(cancellationToken).ConfigureAwait(false);
 
             var position = Math.Max(0, caretPosition - 1);
             var root = await tree.GetRootAsync(cancellationToken).ConfigureAwait(false);

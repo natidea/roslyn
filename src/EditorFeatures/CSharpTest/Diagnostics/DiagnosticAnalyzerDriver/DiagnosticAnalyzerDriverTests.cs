@@ -18,7 +18,7 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Diagnostics.UserDiagnos
 {
     public class DiagnosticAnalyzerDriverTests
     {
-        [Fact]
+        [WpfFact]
         public void DiagnosticAnalyzerDriverAllInOne()
         {
             var source = TestResource.AllInOneCSharpCode;
@@ -41,7 +41,7 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Diagnostics.UserDiagnos
             }
         }
 
-        [Fact, WorkItem(908658)]
+        [WpfFact, WorkItem(908658)]
         public void DiagnosticAnalyzerDriverVsAnalyzerDriverOnCodeBlock()
         {
             var methodNames = new string[] { "Initialize", "AnalyzeCodeBlock" };
@@ -84,7 +84,7 @@ class C
             }
         }
 
-        [Fact]
+        [WpfFact]
         [WorkItem(759)]
         public void DiagnosticAnalyzerDriverIsSafeAgainstAnalyzerExceptions()
         {
@@ -98,7 +98,7 @@ class C
         }
 
         [WorkItem(908621)]
-        [Fact]
+        [WpfFact]
         public void DiagnosticServiceIsSafeAgainstAnalyzerExceptions_1()
         {
             var analyzer = new ThrowingDiagnosticAnalyzer<SyntaxKind>();
@@ -107,7 +107,7 @@ class C
         }
 
         [WorkItem(908621)]
-        [Fact]
+        [WpfFact]
         public void DiagnosticServiceIsSafeAgainstAnalyzerExceptions_2()
         {
             var analyzer = new ThrowingDoNotCatchDiagnosticAnalyzer<SyntaxKind>();
@@ -125,7 +125,7 @@ class C
             Assert.True(exceptions.Count == 0);
         }
 
-        [Fact]
+        [WpfFact]
         public void AnalyzerOptionsArePassedToAllAnalyzers()
         {
             using (var workspace = CSharpWorkspaceFactory.CreateWorkspaceFromFile(TestResource.AllInOneCSharpCode, TestOptions.Regular))
@@ -154,9 +154,13 @@ class C
 
         private class ThrowingDoNotCatchDiagnosticAnalyzer<TLanguageKindEnum> : ThrowingDiagnosticAnalyzer<TLanguageKindEnum>, IBuiltInAnalyzer where TLanguageKindEnum : struct
         {
+            public DiagnosticAnalyzerCategory GetAnalyzerCategory()
+            {
+                return DiagnosticAnalyzerCategory.SyntaxAnalysis | DiagnosticAnalyzerCategory.SemanticDocumentAnalysis | DiagnosticAnalyzerCategory.ProjectAnalysis;
+            }
         }
 
-        [Fact]
+        [WpfFact]
         public void AnalyzerCreatedAtCompilationLevelNeedNotBeCompilationAnalyzer()
         {
             var source = @"x";
@@ -207,7 +211,7 @@ class C
             }
         }
 
-        [Fact]
+        [WpfFact]
         public void CodeBlockAnalyzersOnlyAnalyzeExecutableCode()
         {
             var source = @"
@@ -226,7 +230,7 @@ class C
             {
                 var ideEngineDocument = ideEngineWorkspace.CurrentSolution.Projects.Single().Documents.Single();
                 var diagnostics = DiagnosticProviderTestUtilities.GetAllDiagnostics(analyzer, ideEngineDocument, new Text.TextSpan(0, ideEngineDocument.GetTextAsync().Result.Length));
-                var diagnosticsFromAnalyzer = diagnostics.Where(d => d.Id == CodeBlockAnalyzerFactory.Desciptor.Id);
+                var diagnosticsFromAnalyzer = diagnostics.Where(d => d.Id == CodeBlockAnalyzerFactory.Descriptor.Id);
                 Assert.Equal(2, diagnosticsFromAnalyzer.Count());
             }
 
@@ -245,20 +249,20 @@ class C
             {
                 var compilerEngineCompilation = (CSharpCompilation)compilerEngineWorkspace.CurrentSolution.Projects.Single().GetCompilationAsync().Result;
                 var diagnostics = compilerEngineCompilation.GetAnalyzerDiagnostics(new[] { analyzer });
-                var diagnosticsFromAnalyzer = diagnostics.Where(d => d.Id == CodeBlockAnalyzerFactory.Desciptor.Id);
+                var diagnosticsFromAnalyzer = diagnostics.Where(d => d.Id == CodeBlockAnalyzerFactory.Descriptor.Id);
                 Assert.Equal(4, diagnosticsFromAnalyzer.Count());
             }
         }
 
         private class CodeBlockAnalyzerFactory : DiagnosticAnalyzer
         {
-            public static DiagnosticDescriptor Desciptor = DescriptorFactory.CreateSimpleDescriptor("DummyDiagnostic");
+            public static DiagnosticDescriptor Descriptor = DescriptorFactory.CreateSimpleDescriptor("DummyDiagnostic");
 
             public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics
             {
                 get
                 {
-                    return ImmutableArray.Create(Desciptor);
+                    return ImmutableArray.Create(Descriptor);
                 }
             }
 
@@ -292,7 +296,7 @@ class C
                 {
                     // Ensure only executable nodes are analyzed.
                     Assert.NotEqual(SyntaxKind.MethodDeclaration, context.Node.Kind());
-                    context.ReportDiagnostic(Diagnostic.Create(Desciptor, context.Node.GetLocation()));
+                    context.ReportDiagnostic(Diagnostic.Create(Descriptor, context.Node.GetLocation()));
                 }
             }
         }

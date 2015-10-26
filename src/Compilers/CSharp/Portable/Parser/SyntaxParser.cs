@@ -30,7 +30,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
         private int _resetStart;
 
         private static readonly ObjectPool<BlendedNode[]> s_blendedNodesPool = new ObjectPool<BlendedNode[]>(() => new BlendedNode[32], 2);
-        
+
         private BlendedNode[] _blendedTokens;
 
         protected SyntaxParser(
@@ -61,7 +61,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             }
 
             // PreLex is not cancellable. 
-            //      If we may cancell why would we aggressively lex ahead?
+            //      If we may cancel why would we aggressively lex ahead?
             //      Cancellations in a constructor make disposing complicated
             //
             // So, if we have a real cancellation token, do not do prelexing.
@@ -182,20 +182,9 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             get { return this.lexer.Options; }
         }
 
-        /// <summary>
-        /// Interactive code - global statements, member declarations and expressions allowed.
-        /// </summary>
-        public bool IsInteractive
-        {
-            get { return Options.Kind == SourceCodeKind.Interactive; }
-        }
-
-        /// <summary>
-        /// Script - global statements and member declarations allowed, but not expressions.
-        /// </summary>
         public bool IsScript
         {
-            get { return Options.Kind != SourceCodeKind.Regular; }
+            get { return Options.Kind == SourceCodeKind.Script; }
         }
 
         protected LexerMode Mode
@@ -843,7 +832,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             // the error in we'll attach to the node
             SyntaxDiagnosticInfo diagnostic = null;
 
-            // the position of the error within the skipedSyntax node full tree
+            // the position of the error within the skippedSyntax node full tree
             int diagnosticOffset = 0;
 
             int currentOffset = 0;
@@ -1048,13 +1037,26 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             var featureName = feature.Localize();
             var requiredVersion = feature.RequiredVersion();
 
-            if (forceWarning)
+            if (feature.RequiredFeature() != null)
             {
-                SyntaxDiagnosticInfo rawInfo = new SyntaxDiagnosticInfo(availableVersion.GetErrorCode(), featureName, requiredVersion.Localize());
-                return this.AddError(node, ErrorCode.WRN_ErrorOverride, rawInfo, rawInfo.Code);
-            }
+                if (forceWarning)
+                {
+                    SyntaxDiagnosticInfo rawInfo = new SyntaxDiagnosticInfo(ErrorCode.ERR_FeatureIsExperimental, featureName);
+                    return this.AddError(node, ErrorCode.WRN_ErrorOverride, rawInfo, rawInfo.Code);
+                }
 
-            return this.AddError(node, availableVersion.GetErrorCode(), featureName, requiredVersion.Localize());
+                return this.AddError(node, ErrorCode.ERR_FeatureIsExperimental, featureName);
+            }
+            else
+            {
+                if (forceWarning)
+                {
+                    SyntaxDiagnosticInfo rawInfo = new SyntaxDiagnosticInfo(availableVersion.GetErrorCode(), featureName, requiredVersion.Localize());
+                    return this.AddError(node, ErrorCode.WRN_ErrorOverride, rawInfo, rawInfo.Code);
+                }
+
+                return this.AddError(node, availableVersion.GetErrorCode(), featureName, requiredVersion.Localize());
+            }
         }
 
         protected bool IsFeatureEnabled(MessageID feature)

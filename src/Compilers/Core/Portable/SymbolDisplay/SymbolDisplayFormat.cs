@@ -330,7 +330,7 @@ namespace Microsoft.CodeAnalysis
         /// </param>
         /// <param name="propertyStyle">
         /// The settings that determine how properties are displayed. 
-        /// For eaxmple, "Prop" vs "Prop { get; set; }" in C# or "Prop" vs. "ReadOnly Prop" in Visual Basic.
+        /// For example, "Prop" vs "Prop { get; set; }" in C# or "Prop" vs. "ReadOnly Prop" in Visual Basic.
         /// </param>
         /// <param name="localOptions">
         /// The settings that determine how local variables are displayed.
@@ -630,7 +630,7 @@ namespace Microsoft.CodeAnalysis
         /// Creates a copy of the SymbolDisplayFormat but with replaced <seealso cref="SymbolDisplayGlobalNamespaceStyle"/>.
         /// </summary>
         /// <param name="style">
-        /// An object specifying paramers on how namespace symbols should be formatted.
+        /// An object specifying parameters on how namespace symbols should be formatted.
         /// </param>
         /// <returns>A duplicate of the SymbolDisplayFormat, with a replaced set of <seealso cref="SymbolDisplayGlobalNamespaceStyle"/>.</returns>
         public SymbolDisplayFormat WithGlobalNamespaceStyle(SymbolDisplayGlobalNamespaceStyle style)

@@ -1,97 +1,27 @@
 ' Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 Imports System.Threading
-Imports Microsoft.CodeAnalysis.Editor.Commands
 Imports Microsoft.CodeAnalysis.Editor.CSharp.GoToDefinition
 Imports Microsoft.CodeAnalysis.Editor.Host
-Imports Microsoft.CodeAnalysis.Editor.Implementation.GoToDefinition
-Imports Microsoft.CodeAnalysis.Editor.Navigation
-Imports Microsoft.CodeAnalysis.Editor.UnitTests.Utilities
-Imports Microsoft.CodeAnalysis.Editor.UnitTests.Workspaces
 Imports Microsoft.CodeAnalysis.Editor.VisualBasic.GoToDefinition
-Imports Microsoft.CodeAnalysis.Host
-Imports Microsoft.CodeAnalysis.FindSymbols
-Imports Microsoft.CodeAnalysis.Navigation
-Imports Microsoft.CodeAnalysis.Notification
-Imports Microsoft.CodeAnalysis.Text
-Imports Microsoft.VisualStudio.Text
-Imports Roslyn.Utilities
-Imports Microsoft.CodeAnalysis.GeneratedCodeRecognition
-Imports Microsoft.VisualStudio.Composition
+Imports Microsoft.CodeAnalysis.Editor.UnitTests.Utilities.GoToHelpers
 
 Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
     Public Class GoToDefinitionTests
         Private Sub Test(workspaceDefinition As XElement, Optional expectedResult As Boolean = True)
-            Using workspace = TestWorkspaceFactory.CreateWorkspace(workspaceDefinition, exportProvider:=ExportProvider)
-                Dim solution = workspace.CurrentSolution
-                Dim cursorDocument = workspace.Documents.First(Function(d) d.CursorPosition.HasValue)
-                Dim cursorPosition = cursorDocument.CursorPosition.Value
+            GoToTestHelpers.Test(workspaceDefinition, expectedResult,
+                Function(document As Document, cursorPosition As Integer, presenters As IEnumerable(Of Lazy(Of INavigableItemsPresenter)))
+                    Dim goToDefService = If(document.Project.Language = LanguageNames.CSharp,
+                        DirectCast(New CSharpGoToDefinitionService(presenters), IGoToDefinitionService),
+                        New VisualBasicGoToDefinitionService(presenters))
 
-                Dim items As IList(Of INavigableItem) = Nothing
-
-                ' Set up mocks. The IDocumentNavigationService should be called if there is one,
-                ' location and the INavigableItemsPresenter should be called if there are 
-                ' multiple locations.
-
-                ' prepare a notification listener
-                Dim textView = cursorDocument.GetTextView()
-                Dim textBuffer = textView.TextBuffer
-                textView.Caret.MoveTo(New SnapshotPoint(textBuffer.CurrentSnapshot, cursorPosition))
-
-                Dim cursorBuffer = cursorDocument.TextBuffer
-                Dim document = workspace.CurrentSolution.GetDocument(cursorDocument.Id)
-
-                Dim mockDocumentNavigationService = DirectCast(workspace.Services.GetService(Of IDocumentNavigationService)(), MockDocumentNavigationService)
-
-                Dim presenter = New MockNavigableItemsPresenter(Sub(i) items = i)
-                Dim presenters = {New Lazy(Of INavigableItemsPresenter)(Function() presenter)}
-
-                Dim goToDefService = If(document.Project.Language = LanguageNames.CSharp,
-                    DirectCast(New CSharpGoToDefinitionService(presenters), IGoToDefinitionService),
-                    New VisualBasicGoToDefinitionService(presenters))
-
-                Dim actualResult = goToDefService.TryGoToDefinition(document, cursorPosition, CancellationToken.None)
-
-                If expectedResult Then
-                    If mockDocumentNavigationService._triedNavigationToSpan Then
-                        Dim definitionDocument = workspace.GetTestDocument(mockDocumentNavigationService._documentId)
-                        Assert.Equal(1, definitionDocument.SelectedSpans.Count)
-                        Assert.Equal(definitionDocument.SelectedSpans.Single(), mockDocumentNavigationService._span)
-
-                        ' The INavigableItemsPresenter should not have been called
-                        Assert.Null(items)
-                    Else
-                        Assert.False(mockDocumentNavigationService._triedNavigationToPosition)
-                        Assert.False(mockDocumentNavigationService._triedNavigationToLineAndOffset)
-                        Assert.NotNull(items)
-
-                        For Each location In items
-                            Dim definitionDocument = workspace.GetTestDocument(location.Document.Id)
-                            Assert.True(definitionDocument.SelectedSpans.Contains(location.SourceSpan))
-                        Next
-
-                        ' The IDocumentNavigationService should not have been called
-                        Assert.Null(mockDocumentNavigationService._documentId)
-                    End If
-                Else
-                    Assert.Null(mockDocumentNavigationService._documentId)
-                    Assert.True(items Is Nothing OrElse items.Count = 0)
-                End If
-
-                Assert.Equal(expectedResult, actualResult)
-            End Using
+                    Return goToDefService.TryGoToDefinition(document, cursorPosition, CancellationToken.None)
+                End Function)
         End Sub
-
-        Friend Shared ReadOnly Catalog As ComposableCatalog = TestExportProvider.MinimumCatalogWithCSharpAndVisualBasic.WithParts(
-                        GetType(MockDocumentNavigationServiceFactory),
-                        GetType(DefaultSymbolNavigationServiceFactory),
-                        GetType(GeneratedCodeRecognitionServiceFactory))
-
-        Friend Shared ReadOnly ExportProvider As ExportProvider = MinimalTestExportProvider.CreateExportProvider(Catalog)
 
 #Region "P2P Tests"
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub TestP2PClassReference()
             Dim workspace =
 <Workspace>
@@ -123,7 +53,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
 
 #Region "Normal CSharp Tests"
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGoToDefinition()
             Dim workspace =
 <Workspace>
@@ -138,7 +68,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGoToDefinitionSameClass()
             Dim workspace =
 <Workspace>
@@ -152,7 +82,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGoToDefinitionNestedClass()
             Dim workspace =
 <Workspace>
@@ -173,7 +103,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGotoDefinitionDifferentFiles()
             Dim workspace =
 <Workspace>
@@ -193,7 +123,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGotoDefinitionPartialClasses()
             Dim workspace =
 <Workspace>
@@ -216,7 +146,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGotoDefinitionMethod()
             Dim workspace =
 <Workspace>
@@ -240,7 +170,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
         End Sub
 
         <WorkItem(900438)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGotoDefinitionPartialMethod()
             Dim workspace =
 <Workspace>
@@ -272,7 +202,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGotoDefinitionOnMethodCall1()
             Dim workspace =
 <Workspace>
@@ -297,7 +227,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGotoDefinitionOnMethodCall2()
             Dim workspace =
 <Workspace>
@@ -322,7 +252,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGotoDefinitionOnMethodCall3()
             Dim workspace =
 <Workspace>
@@ -347,7 +277,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGotoDefinitionOnMethodCall4()
             Dim workspace =
 <Workspace>
@@ -372,7 +302,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGotoDefinitionOnConstructor1()
             Dim workspace =
 <Workspace>
@@ -393,7 +323,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
         End Sub
 
         <WorkItem(3376, "DevDiv_Projects/Roslyn")>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGotoDefinitionOnConstructor2()
             Dim workspace =
 <Workspace>
@@ -413,7 +343,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGotoDefinitionWithoutExplicitConstruct()
             Dim workspace =
 <Workspace>
@@ -433,7 +363,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGotoDefinitionOnLocalVariable1()
             Dim workspace =
 <Workspace>
@@ -454,7 +384,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGotoDefinitionOnLocalVariable2()
             Dim workspace =
 <Workspace>
@@ -475,7 +405,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGotoDefinitionOnLocalField()
             Dim workspace =
 <Workspace>
@@ -496,7 +426,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGotoDefinitionOnAttributeClass()
             Dim workspace =
 <Workspace>
@@ -514,7 +444,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGotoDefinitionTouchLeft()
             Dim workspace =
 <Workspace>
@@ -531,7 +461,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGotoDefinitionTouchRight()
             Dim workspace =
 <Workspace>
@@ -548,7 +478,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGotoDefinitionOnGenericTypeParameterInPresenceOfInheritedNestedTypeWithSameName()
             Dim workspace =
 <Workspace>
@@ -570,7 +500,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
         End Sub
 
         <WorkItem(538765)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGotoDefinitionThroughOddlyNamedType()
             Dim workspace =
 <Workspace>
@@ -585,7 +515,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.GoToDefinition
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGoToDefinitionOnConstructorInitializer1()
             Dim workspace =
 <Workspace>
@@ -614,7 +544,7 @@ class Program
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGoToDefinitionOnExtensionMethod()
             Dim workspace =
 <Workspace>
@@ -641,7 +571,7 @@ class Program
         End Sub
 
         <WorkItem(542004)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpTestLambdaParameter()
             Dim workspace =
 <Workspace>
@@ -662,7 +592,7 @@ class C
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpTestLabel()
             Dim workspace =
 <Workspace>
@@ -684,7 +614,7 @@ class C
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpGoToDefinitionFromCref()
             Dim workspace =
 <Workspace>
@@ -705,7 +635,7 @@ class C
 
 #Region "CSharp Venus Tests"
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpVenusGotoDefinition()
             Dim workspace =
 <Workspace>
@@ -726,7 +656,7 @@ class C
         End Sub
 
         <WorkItem(545324)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpFilterGotoDefResultsFromHiddenCodeForUIPresenters()
             Dim workspace =
 <Workspace>
@@ -747,7 +677,7 @@ class C
         End Sub
 
         <WorkItem(545324)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpDoNotFilterGotoDefResultsFromHiddenCodeForApis()
             Dim workspace =
 <Workspace>
@@ -771,7 +701,7 @@ class C
 
 #Region "CSharp Script Tests"
 
-        <Fact(Skip:="https://github.com/dotnet/roslyn/issues/2888"), Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpScriptGoToDefinition()
             Dim workspace =
 <Workspace>
@@ -787,7 +717,7 @@ class C
             Test(workspace)
         End Sub
 
-        <Fact(Skip:="https://github.com/dotnet/roslyn/issues/2888"), Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpScriptGoToDefinitionSameClass()
             Dim workspace =
 <Workspace>
@@ -802,7 +732,7 @@ class C
             Test(workspace)
         End Sub
 
-        <Fact(Skip:="https://github.com/dotnet/roslyn/issues/2888"), Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpScriptGoToDefinitionNestedClass()
             Dim workspace =
 <Workspace>
@@ -824,7 +754,7 @@ class C
             Test(workspace)
         End Sub
 
-        <Fact(Skip:="https://github.com/dotnet/roslyn/issues/2888"), Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpScriptGotoDefinitionDifferentFiles()
             Dim workspace =
 <Workspace>
@@ -847,7 +777,7 @@ class C
             Test(workspace)
         End Sub
 
-        <Fact(Skip:="https://github.com/dotnet/roslyn/issues/2888"), Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpScriptGotoDefinitionPartialClasses()
             Dim workspace =
 <Workspace>
@@ -874,7 +804,7 @@ class C
             Test(workspace)
         End Sub
 
-        <Fact(Skip:="https://github.com/dotnet/roslyn/issues/2888"), Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpScriptGotoDefinitionMethod()
             Dim workspace =
 <Workspace>
@@ -899,7 +829,7 @@ class C
             Test(workspace)
         End Sub
 
-        <Fact(Skip:="https://github.com/dotnet/roslyn/issues/2888"), Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpScriptGotoDefinitionOnMethodCall1()
             Dim workspace =
 <Workspace>
@@ -925,7 +855,7 @@ class C
             Test(workspace)
         End Sub
 
-        <Fact(Skip:="https://github.com/dotnet/roslyn/issues/2888"), Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpScriptGotoDefinitionOnMethodCall2()
             Dim workspace =
 <Workspace>
@@ -950,8 +880,7 @@ class C
 
             Test(workspace)
         End Sub
-
-        <Fact(Skip:="https://github.com/dotnet/roslyn/issues/2888"), Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpScriptGotoDefinitionOnMethodCall3()
             Dim workspace =
 <Workspace>
@@ -977,7 +906,7 @@ class C
             Test(workspace)
         End Sub
 
-        <Fact(Skip:="https://github.com/dotnet/roslyn/issues/2888"), Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpScriptGotoDefinitionOnMethodCall4()
             Dim workspace =
 <Workspace>
@@ -1004,7 +933,7 @@ class C
         End Sub
 
         <WorkItem(989476)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpPreferNongeneratedSourceLocations()
             Dim workspace =
 <Workspace>
@@ -1029,7 +958,7 @@ partial class C
         End Sub
 
         <WorkItem(989476)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpUseGeneratedSourceLocationsIfNoNongeneratedLocationsAvailable()
             Dim workspace =
 <Workspace>
@@ -1057,7 +986,7 @@ class D
 
 #Region "Normal Visual Basic Tests"
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicGoToDefinition()
             Dim workspace =
 <Workspace>
@@ -1076,7 +1005,7 @@ class D
         End Sub
 
         <WorkItem(541105)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicPropertyBackingField()
             Dim workspace =
 <Workspace>
@@ -1095,7 +1024,7 @@ End Class
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicGoToDefinitionSameClass()
             Dim workspace =
 <Workspace>
@@ -1111,7 +1040,7 @@ End Class
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicGoToDefinitionNestedClass()
             Dim workspace =
 <Workspace>
@@ -1129,7 +1058,7 @@ End Class
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicGotoDefinitionDifferentFiles()
             Dim workspace =
 <Workspace>
@@ -1154,7 +1083,7 @@ End Class
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicGotoDefinitionPartialClasses()
             Dim workspace =
 <Workspace>
@@ -1184,7 +1113,7 @@ End Class
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicGotoDefinitionMethod()
             Dim workspace =
 <Workspace>
@@ -1208,7 +1137,7 @@ End Class
         End Sub
 
         <WorkItem(900438)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicGotoDefinitionPartialMethod()
             Dim workspace =
 <Workspace>
@@ -1237,7 +1166,7 @@ End Class
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicTouchLeft()
             Dim workspace =
 <Workspace>
@@ -1260,7 +1189,7 @@ End Class
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicTouchRight()
             Dim workspace =
 <Workspace>
@@ -1284,7 +1213,7 @@ End Class
         End Sub
 
         <WorkItem(542872)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicMe()
             Dim workspace =
 <Workspace>
@@ -1318,7 +1247,7 @@ End Class
         End Sub
 
         <WorkItem(542872)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicMyClass()
             Dim workspace =
 <Workspace>
@@ -1352,7 +1281,7 @@ End Class
         End Sub
 
         <WorkItem(542872)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicMyBase()
             Dim workspace =
 <Workspace>
@@ -1389,7 +1318,7 @@ End Class
 
 #Region "Venus Visual Basic Tests"
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicVenusGotoDefinition()
             Dim workspace =
 <Workspace>
@@ -1410,7 +1339,7 @@ End Class
         End Sub
 
         <WorkItem(545324)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicFilterGotoDefResultsFromHiddenCodeForUIPresenters()
             Dim workspace =
 <Workspace>
@@ -1431,7 +1360,7 @@ End Class
         End Sub
 
         <WorkItem(545324)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicDoNotFilterGotoDefResultsFromHiddenCodeForApis()
             Dim workspace =
 <Workspace>
@@ -1452,7 +1381,7 @@ End Class
         End Sub
 #End Region
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicTestThroughExecuteCommand()
             Dim workspace =
 <Workspace>
@@ -1475,7 +1404,7 @@ End Class
             Test(workspace)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicGoToDefinitionOnExtensionMethod()
             Dim workspace =
 <Workspace>
@@ -1505,7 +1434,7 @@ End Module]]>]
         End Sub
 
         <WorkItem(542220)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpTestAliasAndTarget1()
             Dim workspace =
 <Workspace>
@@ -1534,7 +1463,7 @@ class Program
         End Sub
 
         <WorkItem(542220)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpTestAliasAndTarget2()
             Dim workspace =
 <Workspace>
@@ -1563,7 +1492,7 @@ class Program
         End Sub
 
         <WorkItem(542220)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpTestAliasAndTarget3()
             Dim workspace =
 <Workspace>
@@ -1592,7 +1521,7 @@ class Program
         End Sub
 
         <WorkItem(542220)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub CSharpTestAliasAndTarget4()
             Dim workspace =
 <Workspace>
@@ -1621,7 +1550,7 @@ class Program
         End Sub
 
         <WorkItem(543218)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicQueryRangeVariable()
             Dim workspace =
 <Workspace>
@@ -1645,7 +1574,7 @@ End Module
         End Sub
 
         <WorkItem(529060)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub VisualBasicGotoConstant()
             Dim workspace =
 <Workspace>
@@ -1653,8 +1582,8 @@ End Module
         <Document>
 Module M
     Sub Main()
-lable1: GoTo $$200
-[|200|]:    GoTo lable1
+label1: GoTo $$200
+[|200|]:    GoTo label1
     End Sub
 End Module
         </Document>
@@ -1665,7 +1594,7 @@ End Module
         End Sub
 
         <WorkItem(545661)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub TestCrossLanguageParameterizedPropertyOverride()
             Dim workspace =
 <Workspace>
@@ -1697,7 +1626,7 @@ class B : A
         End Sub
 
         <WorkItem(866094)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub TestCrossLanguageNavigationToVBModuleMember()
             Dim workspace =
 <Workspace>
@@ -1728,7 +1657,7 @@ class C
 
 #Region "Show notification tests"
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub ShowNotificationVB()
             Dim workspace =
 <Workspace>
@@ -1746,7 +1675,7 @@ class C
             Test(workspace, expectedResult:=False)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub ShowNotificationCS()
             Dim workspace =
 <Workspace>
@@ -1765,7 +1694,7 @@ class C
         End Sub
 
         <WorkItem(546341)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub GoToDefinitionOnGlobalKeyword()
             Dim workspace =
 <Workspace>
@@ -1783,7 +1712,7 @@ class C
         End Sub
 
         <WorkItem(902119)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub GoToDefinitionOnInferredFieldInitializer()
             Dim workspace =
 <Workspace>
@@ -1810,7 +1739,7 @@ End Class
         End Sub
 
         <WorkItem(885151)>
-        <Fact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.GoToDefinition)>
         Public Sub GoToDefinitionGlobalImportAlias()
             Dim workspace =
 <Workspace>

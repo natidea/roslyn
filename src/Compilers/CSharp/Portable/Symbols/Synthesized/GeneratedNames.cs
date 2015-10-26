@@ -142,11 +142,11 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
 
         private static string MakeMethodScopedSynthesizedName(
             GeneratedNameKind kind,
-            int methodOrdinal, 
-            int methodGeneration, 
+            int methodOrdinal,
+            int methodGeneration,
             string methodNameOpt = null,
-            string suffix = null, 
-            int entityOrdinal = -1, 
+            string suffix = null,
+            int entityOrdinal = -1,
             int entityGeneration = -1,
             bool isTypeName = false)
         {
@@ -459,6 +459,11 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
         {
             Debug.Assert((char)GeneratedNameKind.ReusableHoistedLocalField == '7');
             return "<>7__wrap" + StringExtensions.GetNumeral(number);
+        }
+
+        internal static string LambdaCopyParameterName(ParameterSymbol sourceParameter)
+        {
+            return "<" + sourceParameter.Name + ">";
         }
     }
 }

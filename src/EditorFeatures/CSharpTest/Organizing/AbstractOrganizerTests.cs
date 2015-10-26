@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Editor.UnitTests.Workspaces;
 using Microsoft.CodeAnalysis.Organizing;
 using Microsoft.CodeAnalysis.Text;
+using Roslyn.Test.Utilities;
 using Xunit;
 
 namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Organizing
@@ -17,17 +18,13 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Organizing
         protected void Check(string initial, string final)
         {
             CheckResult(initial, final);
-#if SCRIPTING
             CheckResult(initial, final, Options.Script);
-#endif
         }
 
         protected void Check(string initial, string final, bool specialCaseSystem)
         {
             CheckResult(initial, final, specialCaseSystem);
-#if SCRIPTING
             CheckResult(initial, final, specialCaseSystem, Options.Script);
-#endif
         }
 
         protected void CheckResult(string initial, string final, bool specialCaseSystem, CSharpParseOptions options = null)
@@ -36,7 +33,7 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Organizing
             {
                 var document = workspace.CurrentSolution.GetDocument(workspace.Documents.First().Id);
                 var newRoot = OrganizingService.OrganizeAsync(document).Result.GetSyntaxRootAsync().Result;
-                Assert.Equal(final, newRoot.ToFullString());
+                Assert.Equal(final.NormalizeLineEndings(), newRoot.ToFullString());
             }
         }
 

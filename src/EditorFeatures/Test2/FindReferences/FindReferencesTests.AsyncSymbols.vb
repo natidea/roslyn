@@ -2,7 +2,7 @@
 
 Namespace Microsoft.CodeAnalysis.Editor.UnitTests.FindReferences
     Partial Public Class FindReferencesTests
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
         Public Sub TestCSAsyncMethodsName1()
             Dim input =
 <Workspace>
@@ -29,7 +29,7 @@ class Test
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
         Public Sub TestVBAsyncMethodsName1()
             Dim input =
 <Workspace>
@@ -52,7 +52,7 @@ End Class
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
         Public Sub TestCSAsyncMethodsName2()
             Dim input =
 <Workspace>
@@ -81,7 +81,7 @@ class Test
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
         Public Sub TestVBAsyncMethodsName2()
             Dim input =
 <Workspace>
@@ -104,7 +104,7 @@ End Class
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
         Public Sub TestCSAsyncMethodsName3()
             Dim input =
 <Workspace>
@@ -130,7 +130,7 @@ class Test
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
         Public Sub TestVBAsyncMethodsName3()
             Dim input =
 <Workspace>
@@ -153,7 +153,7 @@ End Class
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
         Public Sub TestCSAsyncDelegatesName1()
             Dim input =
 <Workspace>
@@ -178,7 +178,7 @@ class Test
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
         Public Sub TestVBAsyncDelegatesName1()
             Dim input =
 <Workspace>
@@ -201,7 +201,7 @@ End Class
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
         Public Sub TestCSAsyncDelegatesName2()
             Dim input =
 <Workspace>
@@ -229,7 +229,7 @@ class Test
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
         Public Sub TestVBAsyncDelegatesName2()
             Dim input =
 <Workspace>
@@ -254,7 +254,7 @@ End Class
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
         Public Sub TestCSAsyncLambaName1()
             Dim input =
 <Workspace>
@@ -281,7 +281,7 @@ class Test
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
         Public Sub TestVBAsyncLambaName1()
             Dim input =
 <Workspace>
@@ -306,7 +306,7 @@ End Class
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
         Public Sub TestAsyncWithinDelegate()
             Dim input =
 <Workspace>
@@ -332,7 +332,7 @@ class Program
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
         Public Sub TestAsyncVBWithinAnonFunctions()
             Dim input =
 <Workspace>
@@ -356,7 +356,7 @@ End Class
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
         Public Sub TestAsyncWithinLamba()
             Dim input =
 <Workspace>
@@ -382,8 +382,8 @@ class Program
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
-        Public Sub TestAsyncFuntionWithAsyncParameters1()
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        Public Sub TestAsyncFunctionWithAsyncParameters1()
             Dim input =
 <Workspace>
     <Project Language="C#" CommonReferences="true">
@@ -411,8 +411,8 @@ class Test
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
-        Public Sub TestAsyncVBFuntionWithAsyncParameters1()
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        Public Sub TestAsyncVBFunctionWithAsyncParameters1()
             Dim input =
 <Workspace>
     <Project Language="Visual Basic" CommonReferences="true">
@@ -434,8 +434,8 @@ End Class
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
-        Public Sub TestAsyncVBFuntionWithAsyncParameters2()
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        Public Sub TestAsyncVBFunctionWithAsyncParameters2()
             Dim input =
 <Workspace>
     <Project Language="Visual Basic" CommonReferences="true">
@@ -457,8 +457,8 @@ End Class
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
-        Public Sub TestAsyncFuntionWithAsyncParameters2()
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        Public Sub TestAsyncFunctionWithAsyncParameters2()
             Dim input =
 <Workspace>
     <Project Language="C#" CommonReferences="true">
@@ -486,8 +486,8 @@ class Test
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
-        Public Sub TestAsyncFuntionWithAsyncParameters3()
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        Public Sub TestAsyncFunctionWithAsyncParameters3()
             Dim input =
 <Workspace>
     <Project Language="C#" CommonReferences="true">
@@ -512,8 +512,8 @@ class Test
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
-        Public Sub TestAsyncFuntionWithAsyncParameters4()
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        Public Sub TestAsyncFunctionWithAsyncParameters4()
             Dim input =
 <Workspace>
     <Project Language="C#" CommonReferences="true">
@@ -538,8 +538,8 @@ class Test
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
-        Public Sub TestAsyncCSFuntionWithRecursion()
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        Public Sub TestAsyncCSFunctionWithRecursion()
             Dim input =
 <Workspace>
     <Project Language="C#" CommonReferences="true">
@@ -564,8 +564,8 @@ class Test
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
-        Public Sub TestAsyncCSFuntionWithOverloading1()
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        Public Sub TestAsyncCSFunctionWithOverloading1()
             Dim input =
 <Workspace>
     <Project Language="C#" CommonReferences="true">
@@ -597,8 +597,8 @@ class Test
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
-        Public Sub TestAsyncVBFuntionWithOverloading1()
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        Public Sub TestAsyncVBFunctionWithOverloading1()
             Dim input =
 <Workspace>
     <Project Language="Visual Basic" CommonReferences="true">
@@ -625,8 +625,8 @@ End Class
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
-        Public Sub TestAsyncVBFuntionWithOverloading2()
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        Public Sub TestAsyncVBFunctionWithOverloading2()
             Dim input =
 <Workspace>
     <Project Language="Visual Basic" CommonReferences="true">
@@ -653,8 +653,8 @@ End Class
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
-        Public Sub TestAsyncCSFuntionWithOverloading2()
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        Public Sub TestAsyncCSFunctionWithOverloading2()
             Dim input =
 <Workspace>
     <Project Language="C#" CommonReferences="true">
@@ -687,7 +687,7 @@ class Test
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
         Public Sub TestAsyncCSAsIdentifier()
             Dim input =
 <Workspace>
@@ -704,7 +704,7 @@ class Test
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
         Public Sub TestAsyncVBAsIdentifier()
             Dim input =
 <Workspace>
@@ -724,7 +724,7 @@ End Class
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
         Public Sub TestAwaitCSAsIdentifier()
             Dim input =
 <Workspace>
@@ -741,7 +741,7 @@ class Test
             Test(input)
         End Sub
 
-        <Fact, Trait(Traits.Feature, Traits.Features.FindReferences)>
+        <WpfFact, Trait(Traits.Feature, Traits.Features.FindReferences)>
         Public Sub TestAwaitVBAsIdentifier()
             Dim input =
 <Workspace>

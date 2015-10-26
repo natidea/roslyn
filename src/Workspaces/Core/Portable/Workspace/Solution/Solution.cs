@@ -277,7 +277,7 @@ namespace Microsoft.CodeAnalysis
         {
             // currently we only support one level branching. 
             // my reasonings are
-            // 1. it seems there is no one who needs sub branches.
+            // 1. it seems there is no-one who needs sub branches.
             // 2. this lets us to branch without explicit branch API
             return _branchId == Workspace.PrimaryBranchId ? BranchId.GetNextId() : _branchId;
         }
@@ -1785,6 +1785,32 @@ namespace Microsoft.CodeAnalysis
                 dependencyGraph: newDependencyGraph,
                 linkedFilesMap: newLinkedFilesMap ?? _linkedFilesMap,
                 lazyLatestProjectVersion: newLatestProjectVersion);
+        }
+
+        internal ImmutableArray<DocumentId> GetRelatedDocumentIds(DocumentId documentId)
+        {
+            var projectState = this.GetProjectState(documentId.ProjectId);
+            if (projectState == null)
+            {
+                // this document no longer exist
+                return ImmutableArray<DocumentId>.Empty;
+            }
+
+            var documentState = projectState.GetDocumentState(documentId);
+            if (documentState == null)
+            {
+                // this document no longer exist
+                return ImmutableArray<DocumentId>.Empty;
+            }
+
+            var filePath = documentState.FilePath;
+            if (string.IsNullOrEmpty(filePath))
+            {
+                // this document can't have any related document. only related document is itself.
+                return ImmutableArray.Create<DocumentId>(documentId);
+            }
+
+            return this.GetDocumentIdsWithFilePath(filePath);
         }
 
         /// <summary>

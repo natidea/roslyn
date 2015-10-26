@@ -599,7 +599,7 @@ namespace Microsoft.CodeAnalysis.Shared.Utilities
             {
                 // Note this is likely an interface member from IEnumerable but the new member may be a
                 // GetEnumerator method on a specific type.
-                if (getEnumerator.IsImplementable())
+                if (getEnumerator.IsImplementableMember())
                 {
                     var expressionType = this.SpeculativeSemanticModel.GetTypeInfo(newForEachStatementExpression, _cancellationToken).ConvertedType;
                     if (expressionType != null)
@@ -687,7 +687,7 @@ namespace Microsoft.CodeAnalysis.Shared.Utilities
                 // Original and new symbols for the invocation expression are compatible.
                 // However, if the symbols are interface members and if the receiver symbol for one of the expressions is a possible ValueType type parameter,
                 // and the other one is not, then there might be a boxing conversion at runtime which causes different runtime behavior.
-                if (symbol.IsImplementable())
+                if (symbol.IsImplementableMember())
                 {
                     if (IsReceiverNonUniquePossibleValueTypeParam(expression, this.OriginalSemanticModel) !=
                         IsReceiverNonUniquePossibleValueTypeParam(newExpression, this.SpeculativeSemanticModel))
@@ -719,7 +719,7 @@ namespace Microsoft.CodeAnalysis.Shared.Utilities
                 }
             }
 
-            if (symbol.IsImplementable() &&
+            if (symbol.IsImplementableMember() &&
                 IsCompatibleInterfaceMemberImplementation(symbol, newSymbol, expression, newExpression, this.SpeculativeSemanticModel))
             {
                 return false;
@@ -956,7 +956,7 @@ namespace Microsoft.CodeAnalysis.Shared.Utilities
             //     * A named argument matches a parameter that is in a different position
             //       in the two parameter lists.
             //
-            // After checking the specifed arguments, we walk the unspecified parameters
+            // After checking the specified arguments, we walk the unspecified parameters
             // in both parameter lists to ensure that they have matching default values.
 
             var specifiedParameters1 = new List<IParameterSymbol>();

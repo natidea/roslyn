@@ -12,7 +12,7 @@ using Roslyn.Utilities;
 namespace Microsoft.VisualStudio.LanguageServices.Implementation.CodeModel.InternalElements
 {
     [ComVisible(true)]
-    [ComDefaultInterface(typeof(EnvDTE.CodeParameter))]
+    [ComDefaultInterface(typeof(EnvDTE80.CodeParameter2))]
     public sealed class CodeParameter : AbstractCodeElement, EnvDTE.CodeParameter, EnvDTE80.CodeParameter2
     {
         internal static EnvDTE.CodeParameter Create(
@@ -42,7 +42,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.CodeModel.Inter
             get { return (IParameterSymbol)LookupSymbol(); }
         }
 
-        private void UpdateNodeAndReaquireParentNodeKey<T>(Action<SyntaxNode, T> parameterUpdater, T value)
+        private void UpdateNodeAndReacquireParentNodeKey<T>(Action<SyntaxNode, T> parameterUpdater, T value)
         {
             Action<SyntaxNode, T> updater = (n, v) =>
             {
@@ -51,7 +51,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.CodeModel.Inter
 
                 parameterUpdater(n, v);
 
-                _parentHandle.Value.ReaquireNodeKey(parentNodePath, CancellationToken.None);
+                _parentHandle.Value.ReacquireNodeKey(parentNodePath, CancellationToken.None);
             };
 
             UpdateNode(updater, value);
@@ -147,7 +147,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.CodeModel.Inter
 
             set
             {
-                UpdateNodeAndReaquireParentNodeKey(FileCodeModel.UpdateType, value);
+                UpdateNodeAndReacquireParentNodeKey(FileCodeModel.UpdateType, value);
             }
         }
 
@@ -160,7 +160,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.CodeModel.Inter
 
             set
             {
-                UpdateNodeAndReaquireParentNodeKey(FileCodeModel.UpdateParameterKind, value);
+                UpdateNodeAndReacquireParentNodeKey(FileCodeModel.UpdateParameterKind, value);
             }
         }
 

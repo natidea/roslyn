@@ -9,6 +9,7 @@ using Microsoft.CodeAnalysis.Editor.UnitTests.Workspaces;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
+using Microsoft.VisualStudio.Text.Operations;
 using Roslyn.Test.Utilities;
 using Xunit;
 
@@ -16,7 +17,7 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.CommentSelection
 {
     public class CSharpCommentSelectionTests
     {
-        [Fact, Trait(Traits.Feature, Traits.Features.CommentSelection)]
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CommentSelection)]
         public void UncommentAndFormat1()
         {
             var code = @"class A
@@ -36,7 +37,7 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.CommentSelection
             UncommentSelection(code, expected);
         }
 
-        [Fact, Trait(Traits.Feature, Traits.Features.CommentSelection)]
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CommentSelection)]
         public void UncommentAndFormat2()
         {
             var code = @"class A
@@ -56,7 +57,35 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.CommentSelection
             UncommentSelection(code, expected);
         }
 
-        [Fact, Trait(Traits.Feature, Traits.Features.CommentSelection)]
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CommentSelection)]
+        public void UncommentSingleLineCommentInPseudoBlockComment()
+        {
+            var code = @"
+class C
+{
+    /// <include file='doc\Control.uex' path='docs/doc[@for=""Control.RtlTranslateAlignment1""]/*' />
+    protected void RtlTranslateAlignment2()
+    {
+        //[|int x = 0;|]
+    }
+    /* Hello world */
+}";
+
+            var expected = @"
+class C
+{
+    /// <include file='doc\Control.uex' path='docs/doc[@for=""Control.RtlTranslateAlignment1""]/*' />
+    protected void RtlTranslateAlignment2()
+    {
+        int x = 0;
+    }
+    /* Hello world */
+}";
+
+            UncommentSelection(code, expected);
+        }
+
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CommentSelection)]
         public void UncommentAndFormat3()
         {
             var code = @"class A
@@ -83,7 +112,10 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.CommentSelection
                 var doc = workspace.Documents.First();
                 SetupSelection(doc.GetTextView(), doc.SelectedSpans.Select(s => Span.FromBounds(s.Start, s.End)));
 
-                var commandHandler = new CommentUncommentSelectionCommandHandler(TestWaitIndicator.Default);
+                var commandHandler = new CommentUncommentSelectionCommandHandler(
+                    TestWaitIndicator.Default,
+                    workspace.ExportProvider.GetExportedValue<ITextUndoHistoryRegistry>(),
+                    workspace.ExportProvider.GetExportedValue<IEditorOperationsFactoryService>());
                 var textView = doc.GetTextView();
                 var textBuffer = doc.GetTextBuffer();
                 commandHandler.ExecuteCommand(textView, textBuffer, CommentUncommentSelectionCommandHandler.Operation.Uncomment);

@@ -269,7 +269,7 @@ lReportErrorOnTwoTokens:
                 End If
             Else
                 ' If alias syntax not specified use Nothing - the emitter will fill in the metadata method name and 
-                ' the users can determine wheter or not it was specified.
+                ' the users can determine whether or not it was specified.
                 entryPointName = Nothing
             End If
 
@@ -902,7 +902,7 @@ lReportErrorOnTwoTokens:
 
             ' Wrap constraints binder in a location-specific binder to
             ' avoid checking constraints when binding type names.
-            binder = New LocationSpecificBinder(BindingLocation.GenericConstraintsClause, binder)
+            binder = New LocationSpecificBinder(BindingLocation.GenericConstraintsClause, Me, binder)
             Return binder.BindTypeParameterConstraintClause(Me, syntax.TypeParameterConstraintClause, diagnostics)
         End Function
 
@@ -1292,12 +1292,12 @@ lReportErrorOnTwoTokens:
 
         Public Overrides ReadOnly Property ReturnTypeCustomModifiers As ImmutableArray(Of CustomModifier)
             Get
-                Dim overriden = Me.OverriddenMethod
+                Dim overridden = Me.OverriddenMethod
 
-                If overriden Is Nothing Then
+                If overridden Is Nothing Then
                     Return ImmutableArray(Of CustomModifier).Empty
                 Else
-                    Return overriden.ReturnTypeCustomModifiers
+                    Return overridden.ReturnTypeCustomModifiers
                 End If
             End Get
         End Property
@@ -1471,7 +1471,7 @@ lReportErrorOnTwoTokens:
                     Dim isExtensionMethod As Boolean = False
 
                     If Not (Me.MethodKind <> MethodKind.Ordinary AndAlso Me.MethodKind <> MethodKind.DeclareMethod) AndAlso
-                        m_containingType.TypeKind = TYPEKIND.Module AndAlso
+                        m_containingType.AllowsExtensionMethods() AndAlso
                         Me.ParameterCount <> 0 Then
 
                         Debug.Assert(Me.IsShared)
@@ -1569,7 +1569,7 @@ lReportErrorOnTwoTokens:
                 If Me.MethodKind <> MethodKind.Ordinary AndAlso Me.MethodKind <> MethodKind.DeclareMethod Then
                     arguments.Diagnostics.Add(ERRID.ERR_ExtensionOnlyAllowedOnModuleSubOrFunction, arguments.AttributeSyntaxOpt.GetLocation())
 
-                ElseIf m_containingType.TypeKind <> TYPEKIND.Module Then
+                ElseIf Not m_containingType.AllowsExtensionMethods() Then
                     arguments.Diagnostics.Add(ERRID.ERR_ExtensionMethodNotInModule, arguments.AttributeSyntaxOpt.GetLocation())
 
                 ElseIf Me.ParameterCount = 0 Then
@@ -1826,7 +1826,7 @@ lReportErrorOnTwoTokens:
         Public Overrides ReadOnly Property IsExternalMethod As Boolean
             Get
                 ' External methods are:
-                ' 1) Declare Subs and Declare Functions: IsExternalMethod overriden in SourceDeclareMethodSymbol
+                ' 1) Declare Subs and Declare Functions: IsExternalMethod overridden in SourceDeclareMethodSymbol
                 ' 2) methods marked by DllImportAttribute
                 ' 3) methods marked by MethodImplAttribute: Runtime and InternalCall methods should not have a body emitted
 
@@ -2066,7 +2066,7 @@ lReportErrorOnTwoTokens:
                     Dim fakeParamsBuilder = ArrayBuilder(Of ParameterSymbol).GetInstance(params.Length)
                     For Each param As ParameterSymbol In params
                         fakeParamsBuilder.Add(New SignatureOnlyParameterSymbol(
-                                                param.Type.InternalSubstituteTypeParameters(replaceMethodTypeParametersWithFakeTypeParameters),
+                                                param.Type.InternalSubstituteTypeParameters(replaceMethodTypeParametersWithFakeTypeParameters).AsTypeSymbolOnly(),
                                                 ImmutableArray(Of CustomModifier).Empty,
                                                 defaultConstantValue:=Nothing,
                                                 isParamArray:=False,
@@ -2080,7 +2080,7 @@ lReportErrorOnTwoTokens:
                                                                             Me.CallingConvention,
                                                                             fakeTypeParameters,
                                                                             fakeParamsBuilder.ToImmutableAndFree(),
-                                                                            retType.InternalSubstituteTypeParameters(replaceMethodTypeParametersWithFakeTypeParameters),
+                                                                            retType.InternalSubstituteTypeParameters(replaceMethodTypeParametersWithFakeTypeParameters).AsTypeSymbolOnly(),
                                                                             ImmutableArray(Of CustomModifier).Empty,
                                                                             ImmutableArray(Of MethodSymbol).Empty,
                                                                             isOverrides:=True))

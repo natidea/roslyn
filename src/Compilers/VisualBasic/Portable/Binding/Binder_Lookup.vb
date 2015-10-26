@@ -186,7 +186,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                         ' Since raw generics cannot be imported, the import aliases would always refer to
                         ' constructed types when referring to generics. So any other generic arity besides
                         ' -1 or 0 are invalid.
-                        If arity <> 0 Then ' aliases are always arity 0, but error refers to the taget
+                        If arity <> 0 Then ' aliases are always arity 0, but error refers to the target
                             ' Note, Dev11 doesn't stop lookup in case of arity mismatch for an alias.
                             Return SingleLookupResult.WrongArity(unwrappedSym, WrongArityErrid(0, arity))
                         End If
@@ -396,7 +396,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             End Sub
 
             ''' <summary>
-            ''' Lookup an immediate (without decending into modules) member name in a namespace, 
+            ''' Lookup an immediate (without descending into modules) member name in a namespace, 
             ''' returning a LookupResult that summarizes the results of the lookup. 
             ''' See LookupResult structure for a detailed discussion of the meaning of the results. 
             ''' The supplied binder is used for accessibility checks and base class suppression.

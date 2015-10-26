@@ -466,9 +466,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator
             If Not IsAssignableExpression(binder, expression) Then
                 flags = flags Or DkmClrCompilationResultFlags.ReadOnlyResult
             End If
-            If MayHaveSideEffectsVisitor.MayHaveSideEffects(expression) Then
-                flags = flags Or DkmClrCompilationResultFlags.PotentialSideEffect
-            End If
+
+            Try
+                If MayHaveSideEffectsVisitor.MayHaveSideEffects(expression) Then
+                    flags = flags Or DkmClrCompilationResultFlags.PotentialSideEffect
+                End If
+            Catch ex As BoundTreeVisitor.CancelledByStackGuardException
+                ex.AddAnError(diagnostics)
+            End Try
 
             If IsStatement(expression) Then
                 expression = binder.ReclassifyInvocationExpressionAsStatement(expression, diagnostics)
@@ -547,7 +552,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator
             End While
 
             ' PERF: we used to call compilation.GetCompilationNamespace on every iteration,
-            ' but that involved walking up to the global namesapce, which we have to do
+            ' but that involved walking up to the global namespace, which we have to do
             ' anyway.  Instead, we'll inline the functionality into our own walk of the
             ' namespace chain.
             [namespace] = compilation.GlobalNamespace
@@ -1294,7 +1299,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator
         ''' generated.  For example, if <paramref name="candidateSubstitutedSourceMethod"/>
         ''' is a state machine MoveNext method, then we will try to find the iterator or
         ''' async method for which it was generated.  if we are able to find the original
-        ''' method, then we will substitue in the EE type parameters.  Otherwise, we will
+        ''' method, then we will substitute in the EE type parameters.  Otherwise, we will
         ''' return <paramref name="candidateSubstitutedSourceMethod"/>.
         ''' </returns>
         ''' <remarks>

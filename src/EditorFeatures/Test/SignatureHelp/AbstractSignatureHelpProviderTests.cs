@@ -20,16 +20,22 @@ using Xunit;
 
 namespace Microsoft.CodeAnalysis.Editor.UnitTests.SignatureHelp
 {
-    public abstract class AbstractSignatureHelpProviderTests<TWorkspaceFixture> : TestBase, IUseFixture<TWorkspaceFixture>
+    public abstract class AbstractSignatureHelpProviderTests<TWorkspaceFixture> : TestBase, IClassFixture<TWorkspaceFixture>
         where TWorkspaceFixture : TestWorkspaceFixture, new()
     {
         protected TWorkspaceFixture workspaceFixture;
 
         internal abstract ISignatureHelpProvider CreateSignatureHelpProvider();
 
-        public void SetFixture(TWorkspaceFixture workspaceFixture)
+        protected AbstractSignatureHelpProviderTests(TWorkspaceFixture workspaceFixture)
         {
             this.workspaceFixture = workspaceFixture;
+        }
+
+        public override void Dispose()
+        {
+            this.workspaceFixture.CloseTextView();
+            base.Dispose();
         }
 
         /// <summary>
@@ -41,7 +47,12 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.SignatureHelp
         /// <param name="usePreviousCharAsTrigger">If true, uses the last character before $$ to trigger sighelp.
         /// If false, invokes sighelp explicitly at the cursor location.</param>
         /// <param name="sourceCodeKind">The sourcecodekind to run this test on. If null, runs on both regular and script sources.</param>
-        protected virtual void Test(string markup, IEnumerable<SignatureHelpTestItem> expectedOrderedItemsOrNull = null, bool usePreviousCharAsTrigger = false, SourceCodeKind? sourceCodeKind = null, bool experimental = false)
+        protected virtual void Test(
+            string markup,
+            IEnumerable<SignatureHelpTestItem> expectedOrderedItemsOrNull = null,
+            bool usePreviousCharAsTrigger = false,
+            SourceCodeKind? sourceCodeKind = null,
+            bool experimental = false)
         {
             if (sourceCodeKind.HasValue)
             {
@@ -50,9 +61,7 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.SignatureHelp
             else
             {
                 TestSignatureHelpWorker(markup, SourceCodeKind.Regular, experimental, expectedOrderedItemsOrNull, usePreviousCharAsTrigger);
-#if SCRIPTING
                 TestSignatureHelpWorker(markup, SourceCodeKind.Script, experimental, expectedOrderedItemsOrNull, usePreviousCharAsTrigger);
-#endif
             }
         }
 
@@ -123,9 +132,7 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.SignatureHelp
             else
             {
                 VerifyTriggerCharactersWorker(expectedTriggerCharacters, unexpectedTriggerCharacters, SourceCodeKind.Regular);
-#if SCRIPTING
                 VerifyTriggerCharactersWorker(expectedTriggerCharacters, unexpectedTriggerCharacters, SourceCodeKind.Script);
-#endif
             }
         }
 
@@ -153,9 +160,7 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.SignatureHelp
             else
             {
                 VerifyCurrentParameterNameWorker(markup, expectedParameterName, SourceCodeKind.Regular);
-#if SCRIPTING
                 VerifyCurrentParameterNameWorker(markup, expectedParameterName, SourceCodeKind.Script);
-#endif
             }
         }
 

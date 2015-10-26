@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
+// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 using System;
 using System.Collections.Immutable;
@@ -692,7 +692,7 @@ public class Derived2 : Derived
             Assert.False(derived2Indexer2.Parameters.Single().IsParams, "Derived2.Indexer2.IsParams should be false");
         }
 
-        [Fact]
+        [ClrOnlyFact]
         [WorkItem(819774, "DevDiv")]
         public void Repro819774()
         {
@@ -733,7 +733,7 @@ class Test
                 options: TestOptions.ReleaseExe.WithMetadataImportOptions(MetadataImportOptions.All),
                 references: new[] { CSharpRef, SystemCoreRef });
 
-            CompileAndVerify(comp, emitters: TestEmitters.RefEmitBug, expectedOutput: "Bug813305.M",
+            CompileAndVerify(comp, expectedOutput: "Bug813305.M",
                 symbolValidator: m =>
                 {
                     var Bug813305 = m.GlobalNamespace.GetTypeMember("Bug813305");
@@ -943,8 +943,8 @@ public class C : I<byte, char>
             var classMethod = global.GetMember<NamedTypeSymbol>("C").GetMembers().OfType<MethodSymbol>().Single(
                 m => m.MethodKind == MethodKind.ExplicitInterfaceImplementation);
 
-            Assert.Equal("void I<T, U>.M(ref I<System.Object modopt(System.Int16) [], dynamic modopt(System.Int32) []> modopt(System.Int64) c)", interfaceMethod.ToTestDisplayString());
-            Assert.Equal("void C.I<System.Byte, System.Char>.M(ref I<dynamic modopt(System.Int16) [], System.Object modopt(System.Int32) []> modopt(System.Int64) c)", classMethod.ToTestDisplayString());
+            Assert.Equal("void I<T, U>.M(ref modopt(System.Int64) I<System.Object modopt(System.Int16) [], dynamic modopt(System.Int32) []> c)", interfaceMethod.ToTestDisplayString());
+            Assert.Equal("void C.I<System.Byte, System.Char>.M(ref modopt(System.Int64) I<dynamic modopt(System.Int16) [], System.Object modopt(System.Int32) []> c)", classMethod.ToTestDisplayString());
         }
 
         [ClrOnlyFact(ClrOnlyReason.Ilasm)]

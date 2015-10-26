@@ -31,7 +31,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.Suggestions
             _fixedDiagnostic = originalFixedDiagnostic;
         }
 
-        public string GetDiagnosticID()
+        public virtual string GetDiagnosticID()
         {
             // we log diagnostic id as it is if it is from us
             if (_fixedDiagnostic.Descriptor.CustomTags.Any(t => t == WellKnownDiagnosticTags.Telemetry))
@@ -48,7 +48,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.Suggestions
             get
             {
                 // Since FixAllSuggestedAction will always be presented as a
-                // 'flavored' action, it will never havve a preview.
+                // 'flavored' action, it will never have a preview.
                 return false;
             }
         }

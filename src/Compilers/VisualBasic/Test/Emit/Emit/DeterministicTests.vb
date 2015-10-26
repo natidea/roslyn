@@ -1,6 +1,7 @@
 ﻿' Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 Imports System
+Imports System.IO
 Imports System.Collections.Generic
 Imports System.Collections.Immutable
 Imports System.Threading
@@ -13,8 +14,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.UnitTests.Emit
         Inherits BasicTestBase
 
         Private Function GetBytesEmitted(source As String, platform As Platform, debug As Boolean) As ImmutableArray(Of Byte)
-            Dim options = If(debug, TestOptions.DebugExe, TestOptions.ReleaseExe).WithPlatform(platform)
-            options = options.WithFeatures({"dEtErmInIstIc"}.AsImmutable()) ' expect case-insensitivity
+            Dim options = If(debug, TestOptions.DebugExe, TestOptions.ReleaseExe).WithPlatform(platform).WithDeterministic(True)
 
             Dim compilation = CreateCompilationWithMscorlib({source}, assemblyName:="DeterminismTest", options:=options)
 
@@ -26,8 +26,30 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.UnitTests.Emit
         End Function
 
         <Fact>
+        Public Sub BanVersionWildcards()
+            Dim source =
+"<assembly: System.Reflection.AssemblyVersion(""10101.0.*"")> 
+Class C 
+    Shared Sub Main()
+    End Sub
+End Class"
+            Dim compilationDeterministic = CreateCompilationWithMscorlib({source},
+                                                                         assemblyName:="DeterminismTest",
+                                                                         options:=TestOptions.DebugExe.WithDeterministic(True))
+            Dim compilationNonDeterministic = CreateCompilationWithMscorlib({source},
+                                                                         assemblyName:="DeterminismTest",
+                                                                         options:=TestOptions.DebugExe.WithDeterministic(False))
+
+            Dim resultDeterministic = compilationDeterministic.Emit(Stream.Null, Stream.Null)
+            Dim resultNonDeterministic = compilationNonDeterministic.Emit(Stream.Null, Stream.Null)
+
+            Assert.False(resultDeterministic.Success)
+            Assert.True(resultNonDeterministic.Success)
+        End Sub
+
+        <Fact(Skip:="https://github.com/dotnet/roslyn/issues/5813")>
         Public Sub CompareAllBytesEmitted_Release()
-            Dim source = 
+            Dim source =
 "Class Program
     Shared Sub Main()
     End Sub
@@ -41,7 +63,7 @@ End Class"
             AssertEx.Equal(result3, result4)
         End Sub
 
-        <Fact(Skip:="926"), WorkItem(926)>
+        <Fact(Skip:="https://github.com/dotnet/roslyn/issues/5813"), WorkItem(926)>
         Public Sub CompareAllBytesEmitted_Debug()
             Dim source =
 "Class Program

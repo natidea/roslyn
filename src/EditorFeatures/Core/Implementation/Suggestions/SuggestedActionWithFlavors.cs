@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.Extensions;
 using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Text;
+using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.Editor.Implementation.Suggestions
 {
@@ -31,7 +32,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.Suggestions
             {
                 // HasActionSets is called synchronously on the UI thread. In order to avoid blocking the UI thread,
                 // we need to provide a 'quick' answer here as opposed to the 'right' answer. Providing the 'right'
-                // answer is expensive (because we will need to call CodeAction.GetPreivewOperationsAsync() (to
+                // answer is expensive (because we will need to call CodeAction.GetPreviewOperationsAsync() (to
                 // compute whether or not we should display the flavored action for 'Preview Changes') which in turn
                 // will involve computing the changed solution for the ApplyChangesOperation for the fix / refactoring
                 // So we always return 'true' here (so that platform will call GetActionSetsAsync() below). Platform
@@ -50,7 +51,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.Suggestions
             // Light bulb will always invoke this property on the UI thread.
             AssertIsForeground();
 
-            if (_actionSets == null)
+            if (_actionSets.IsDefault)
             {
                 var extensionManager = this.Workspace.Services.GetService<IExtensionManager>();
 
@@ -78,6 +79,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.Suggestions
                 }, defaultValue: ImmutableArray<SuggestedActionSet>.Empty).ConfigureAwait(true);
             }
 
+            Contract.ThrowIfTrue(_actionSets.IsDefault);
             return _actionSets;
         }
 

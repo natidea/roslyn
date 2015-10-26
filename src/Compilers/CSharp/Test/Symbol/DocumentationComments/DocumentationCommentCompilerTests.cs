@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
+// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 using System;
 using System.Collections.Generic;
@@ -5454,7 +5454,7 @@ public class C : IEquatable<C>
         }
 
         [WorkItem(531505, "DevDiv")]
-        [Fact]
+        [ClrOnlyFact]
         public void Pia()
         {
             var source = @"
@@ -5978,7 +5978,7 @@ class C { }
 <typeparam name=""TComparator"">The type of comparator used to compare items during the search operation.</typeparam>
 <param name=""array"">The sorted array to search.</param>
 <param name=""value"">The object to search for.</param>
-<returns>If found, the index of the specified value in the given array. Otheriwse, if not found, and the value is less than one or more items in the array, a negative number which is the bitwise complement of the index of the first item that is larger than the given value. If the value is not found and it is greater than any of the items in the array, a negative number which is the bitwise complement of (the index of the last item plus 1).</returns>
+<returns>If found, the index of the specified value in the given array. Otherwise, if not found, and the value is less than one or more items in the array, a negative number which is the bitwise complement of the index of the first item that is larger than the given value. If the value is not found and it is greater than any of the items in the array, a negative number which is the bitwise complement of (the index of the last item plus 1).</returns>
 </doc>
 <doc name=""ArrayExtensions.BinarySearch(ArrayType,T)"">
 <include file=""{0}"" path=""docs/doc[@name='ArrayExtensions.BinarySearchCore']/*"" />
@@ -6039,7 +6039,7 @@ class C
             <overloads>Searches a sorted array for a value using a binary search algorithm.</overloads><typeparam name=""T"">" +
             @"The type of items in the array.</typeparam><typeparam name=""TComparator"">The type of comparator used to compare " +
             @"items during the search operation.</typeparam><param name=""array"">The sorted array to search.</param><param name=""value"">" +
-            @"The object to search for.</param><returns>If found, the index of the specified value in the given array. Otheriwse, if not " +
+            @"The object to search for.</param><returns>If found, the index of the specified value in the given array. Otherwise, if not " +
             @"found, and the value is less than one or more items in the array, a negative number which is the bitwise complement of the " +
             @"index of the first item that is larger than the given value. If the value is not found and it is greater than any of the items " +
             @"in the array, a negative number which is the bitwise complement of (the index of the last item plus 1).</returns>
@@ -6119,7 +6119,8 @@ class Module1
 
         #endregion Dev10 bugs
 
-        [Fact, WorkItem(1115058, "DevDiv")]
+        [ClrOnlyFact]
+        [WorkItem(1115058, "DevDiv")]
         public void UnterminatedElement()
         {
             var source = @"

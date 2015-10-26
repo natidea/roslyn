@@ -144,7 +144,6 @@ namespace Microsoft.Cci
         void MapTokenToSourceSpan(uint token, ISymUnmanagedDocumentWriter document, uint startLine, uint startColumn, uint endLine, uint endColumn);
     }
 
-#if DETERMINISTIC_PDB // workitem 926
     [ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("CA6C2ED9-103D-46A9-B03B-05446485848B"), SuppressUnmanagedCodeSecurity]
     internal interface ISymUnmanagedWriter6 : ISymUnmanagedWriter5
     {
@@ -153,9 +152,17 @@ namespace Microsoft.Cci
 
         // ISymUnmanagedWriter6
         void InitializeDeterministic([MarshalAs(UnmanagedType.IUnknown)] object emitter, [MarshalAs(UnmanagedType.IUnknown)] object stream);
+    }
+
+    [ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("B473C610-C958-4C3D-99A0-F2BA0A38807C"), SuppressUnmanagedCodeSecurity]
+    interface ISymUnmanagedWriter100 : ISymUnmanagedWriter6
+    {
+        //  ISymUnmanagedWriter, ISymUnmanagedWriter2, ISymUnmanagedWriter3, ISymUnmanagedWriter4, ISymUnmanagedWriter5, ISymUnmanagedWriter6
+        void _VtblGap1_34();
+
         void SetSignature(uint sig, Guid sig70);
     }
-#endif
+
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal struct ImageDebugDirectory
     {

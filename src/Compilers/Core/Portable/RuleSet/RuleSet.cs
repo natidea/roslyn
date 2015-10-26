@@ -11,7 +11,7 @@ using Roslyn.Utilities;
 namespace Microsoft.CodeAnalysis
 {
     /// <summary>
-    /// Represents a set of rules as specified in a rulset file.
+    /// Represents a set of rules as specified in a ruleset file.
     /// </summary>
     public class RuleSet
     {
@@ -35,7 +35,7 @@ namespace Microsoft.CodeAnalysis
 
         private readonly ImmutableDictionary<string, ReportDiagnostic> _specificDiagnosticOptions;
         /// <summary>
-        /// Individual ruleids and their associated actions.
+        /// Individual rule ids and their associated actions.
         /// </summary>
         public ImmutableDictionary<string, ReportDiagnostic> SpecificDiagnosticOptions
         {

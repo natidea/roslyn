@@ -1,7 +1,9 @@
 // Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,18 +30,22 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.ReferenceHighlighting
             }
 
             symbol = await GetSymbolToSearchAsync(document, position, semanticModel, symbol, cancellationToken).ConfigureAwait(false);
+            if (symbol == null)
+            {
+                return SpecializedCollections.EmptyEnumerable<DocumentHighlights>();
+            }
 
             // Get unique tags for referenced symbols
             return await GetTagsForReferencedSymbolAsync(symbol, ImmutableHashSet.CreateRange(documentsToSearch), solution, cancellationToken).ConfigureAwait(false);
         }
 
-        private async Task<ISymbol> GetSymbolToSearchAsync(Document document, int position, SemanticModel semanticModel, ISymbol symbols, CancellationToken cancellationToken)
+        private async Task<ISymbol> GetSymbolToSearchAsync(Document document, int position, SemanticModel semanticModel, ISymbol symbol, CancellationToken cancellationToken)
         {
-            // see whether we can use symbols as it is
+            // see whether we can use the symbol as it is
             var currentSemanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
             if (currentSemanticModel == semanticModel)
             {
-                return symbols;
+                return symbol;
             }
 
             // get symbols from current document again
@@ -113,8 +119,13 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.ReferenceHighlighting
         private Task<IEnumerable<Location>> GetAdditionalReferencesAsync(
             Document document, ISymbol symbol, CancellationToken cancellationToken)
         {
-            return document.Project.LanguageServices.GetService<IReferenceHighlightingAdditionalReferenceProvider>()
-                .GetAdditionalReferencesAsync(document, symbol, cancellationToken);
+            var additionalReferenceProvider = document.Project.LanguageServices.GetService<IReferenceHighlightingAdditionalReferenceProvider>();
+            if (additionalReferenceProvider != null)
+            {
+                return additionalReferenceProvider.GetAdditionalReferencesAsync(document, symbol, cancellationToken);
+            }
+
+            return Task.FromResult<IEnumerable<Location>>(SpecializedCollections.EmptyEnumerable<Location>());
         }
 
         private async Task<IEnumerable<DocumentHighlights>> CreateSpansAsync(
@@ -150,9 +161,23 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.ReferenceHighlighting
                 {
                     foreach (var location in reference.Definition.Locations)
                     {
-                        if (location.IsInSource && documentToSearch.Contains(solution.GetDocument(location.SourceTree)))
+                        if (location.IsInSource)
                         {
-                            await AddLocationSpan(location, solution, spanSet, tagMap, HighlightSpanKind.Definition, cancellationToken).ConfigureAwait(false);
+                            var document = solution.GetDocument(location.SourceTree);
+
+                            // GetDocument will return null for locations in #load'ed trees.
+                            // TODO:  Remove this check and add logic to fetch the #load'ed tree's
+                            // Document once https://github.com/dotnet/roslyn/issues/5260 is fixed.
+                            if (document == null)
+                            {
+                                Debug.Assert(solution.Workspace.Kind == "Interactive");
+                                continue;
+                            }
+
+                            if (documentToSearch.Contains(document))
+                            { 
+                                await AddLocationSpan(location, solution, spanSet, tagMap, HighlightSpanKind.Definition, cancellationToken).ConfigureAwait(false);
+                            }
                         }
                     }
                 }

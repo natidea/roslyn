@@ -20,7 +20,8 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.CodeModel
         {
             var needMoreTime = false;
 
-            _elementTable.Cleanup(out needMoreTime);
+            _codeElementTable.CleanUpDeadObjects();
+            needMoreTime = _codeElementTable.NeedsCleanUp;
 
             if (this.IsZombied)
             {
@@ -165,7 +166,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.CodeModel
                 }
                 else
                 {
-                    element = this.CreateCodeElement<EnvDTE.CodeElement>(codeModelEvent.Node);
+                    element = this.GetOrCreateCodeElement<EnvDTE.CodeElement>(codeModelEvent.Node);
                 }
             }
 
@@ -184,14 +185,14 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.CodeModel
             {
                 if (codeModelEvent.ParentNode != null)
                 {
-                    return this.CreateCodeElement<EnvDTE.CodeElement>(codeModelEvent.ParentNode);
+                    return this.GetOrCreateCodeElement<EnvDTE.CodeElement>(codeModelEvent.ParentNode);
                 }
             }
             else if (this.CodeModelService.IsAttributeNode(codeModelEvent.Node))
             {
                 if (codeModelEvent.ParentNode != null)
                 {
-                    return this.CreateCodeElement<EnvDTE.CodeElement>(codeModelEvent.ParentNode);
+                    return this.GetOrCreateCodeElement<EnvDTE.CodeElement>(codeModelEvent.ParentNode);
                 }
                 else
                 {
@@ -203,7 +204,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.CodeModel
                 if (codeModelEvent.ParentNode != null &&
                     codeModelEvent.ParentNode.Parent != null)
                 {
-                    return this.CreateCodeElement<EnvDTE.CodeElement>(codeModelEvent.ParentNode);
+                    return this.GetOrCreateCodeElement<EnvDTE.CodeElement>(codeModelEvent.ParentNode);
                 }
                 else
                 {
@@ -343,7 +344,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.CodeModel
             }
             else
             {
-                int testOridinal = 0;
+                int testOrdinal = 0;
                 foreach (EnvDTE.CodeElement element in elementsToSearch)
                 {
                     if (element.Kind != EnvDTE.vsCMElement.vsCMElementAttribute)
@@ -353,12 +354,12 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.CodeModel
 
                     if (element.Name == name)
                     {
-                        if (ordinal == testOridinal)
+                        if (ordinal == testOrdinal)
                         {
                             return element;
                         }
 
-                        testOridinal++;
+                        testOrdinal++;
                     }
                 }
             }

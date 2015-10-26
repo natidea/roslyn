@@ -38,7 +38,7 @@ namespace Microsoft.VisualStudio.LanguageServices.CSharp.Snippets
         {
             AssertIsForeground();
 
-            if (!args.SubjectBuffer.GetOption(InternalFeatureOnOffOptions.Snippets))
+            if (!AreSnippetsEnabled(args))
             {
                 nextHandler();
                 return;
@@ -49,6 +49,13 @@ namespace Microsoft.VisualStudio.LanguageServices.CSharp.Snippets
 
         public CommandState GetCommandState(SurroundWithCommandArgs args, Func<CommandState> nextHandler)
         {
+            AssertIsForeground();
+
+            if (!AreSnippetsEnabled(args))
+            {
+                return nextHandler();
+            }
+
             Workspace workspace;
             if (!Workspace.TryGetWorkspace(args.SubjectBuffer.AsTextContainer(), out workspace))
             {
@@ -101,7 +108,7 @@ namespace Microsoft.VisualStudio.LanguageServices.CSharp.Snippets
 
         protected override bool IsSnippetExpansionContext(Document document, int startPosition, CancellationToken cancellationToken)
         {
-            var syntaxTree = document.GetCSharpSyntaxTreeAsync(cancellationToken).WaitAndGetResult(cancellationToken);
+            var syntaxTree = document.GetSyntaxTreeAsync(cancellationToken).WaitAndGetResult(cancellationToken);
 
             return !syntaxTree.IsEntirelyWithinStringOrCharLiteral(startPosition, cancellationToken) &&
                 !syntaxTree.IsEntirelyWithinComment(startPosition, cancellationToken);

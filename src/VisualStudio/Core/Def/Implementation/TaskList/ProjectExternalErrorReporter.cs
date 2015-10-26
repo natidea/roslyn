@@ -22,6 +22,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.TaskList
     {
         internal static readonly ImmutableDictionary<string, string> Properties = ImmutableDictionary<string, string>.Empty.Add(WellKnownDiagnosticPropertyNames.Origin, WellKnownDiagnosticTags.Build);
         internal static readonly IReadOnlyList<string> CustomTags = ImmutableArray.Create(WellKnownDiagnosticTags.Telemetry);
+        internal static readonly IReadOnlyList<string> CompilerDiagnosticCustomTags = ImmutableArray.Create(WellKnownDiagnosticTags.Compiler, WellKnownDiagnosticTags.Telemetry);
 
         private readonly ProjectId _projectId;
         private readonly string _errorCodePrefix;
@@ -82,7 +83,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.TaskList
         public int GetErrors(out IVsEnumExternalErrors pErrors)
         {
             pErrors = null;
-            Debug.Fail("This is not implmented, because no one called it.");
+            Debug.Fail("This is not implemented, because no one called it.");
             return VSConstants.E_NOTIMPL;
         }
 
@@ -219,6 +220,27 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.TaskList
                 id, GetErrorId(error), error.bstrText, GetDiagnosticSeverity(error), null, 0, 0, 0, 0, null, 0, 0, 0, 0);
         }
 
+        private static bool IsCompilerDiagnostic(string errorId)
+        {
+            if (!string.IsNullOrEmpty(errorId) && errorId.Length > 2)
+            {
+                var prefix = errorId.Substring(0, 2);
+                if (prefix.Equals("CS", StringComparison.OrdinalIgnoreCase) || prefix.Equals("BC", StringComparison.OrdinalIgnoreCase))
+                {
+                    var suffix = errorId.Substring(2);
+                    int id;
+                    return int.TryParse(suffix, out id);
+                }
+            }
+
+            return false;
+        }
+
+        private static IReadOnlyList<string> GetCustomTags(string errorId)
+        {
+            return IsCompilerDiagnostic(errorId) ? CompilerDiagnosticCustomTags : CustomTags;
+        }
+
         private DiagnosticData GetDiagnosticData(
             DocumentId id, string errorId, string message, DiagnosticSeverity severity,
             string mappedFilePath, int mappedStartLine, int mappedStartColumn, int mappedEndLine, int mappedEndColumn,
@@ -228,26 +250,28 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.TaskList
                 id: errorId,
                 category: WellKnownDiagnosticTags.Build,
                 message: message,
+                title: message,
                 enuMessageForBingSearch: message, // Unfortunately, there is no way to get ENU text for this since this is an external error.
                 severity: severity,
                 defaultSeverity: severity,
                 isEnabledByDefault: true,
                 warningLevel: GetWarningLevel(severity),
-                customTags: CustomTags,
+                customTags: GetCustomTags(errorId),
                 properties: Properties,
                 workspace: _workspace,
                 projectId: _projectId,
-                documentId: id,
-                mappedFilePath: mappedFilePath,
-                mappedStartLine: mappedStartLine,
-                mappedStartColumn: mappedStartColumn,
-                mappedEndLine: mappedEndLine,
-                mappedEndColumn: mappedEndColumn,
-                originalFilePath: originalFilePath,
-                originalStartLine: originalStartLine,
-                originalStartColumn: originalStartColumn,
-                originalEndLine: originalEndLine,
-                originalEndColumn: originalEndColumn);
+                location: new DiagnosticDataLocation(id,
+                    sourceSpan: null,
+                    originalFilePath: originalFilePath,
+                    originalStartLine: originalStartLine,
+                    originalStartColumn: originalStartColumn,
+                    originalEndLine: originalEndLine,
+                    originalEndColumn: originalEndColumn,
+                    mappedFilePath: mappedFilePath,
+                    mappedStartLine: mappedStartLine,
+                    mappedStartColumn: mappedStartColumn,
+                    mappedEndLine: mappedEndLine,
+                    mappedEndColumn: mappedEndColumn));
         }
     }
 }

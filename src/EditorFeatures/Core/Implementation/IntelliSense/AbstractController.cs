@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using Microsoft.CodeAnalysis.Editor.Shared.Utilities;
 using Microsoft.CodeAnalysis.Shared.TestHooks;
 using Microsoft.VisualStudio.Text;
@@ -23,7 +24,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense
         private readonly string _asyncOperationId;
 
         // Null when we absolutely know we don't have any sort of item computation going on. Non
-        // null the moment we think we start computating state. Null again once we decide we can
+        // null the moment we think we start computing state. Null again once we decide we can
         // stop.
         protected TSession sessionOpt;
 
@@ -77,11 +78,14 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense
             this.OnModelUpdated(result);
         }
 
-        IAsyncToken IController<TModel>.BeginAsyncOperation()
+        IAsyncToken IController<TModel>.BeginAsyncOperation(string name, object tag, string filePath, int lineNumber)
         {
             AssertIsForeground();
             VerifySessionIsActive();
-            return _asyncListener.BeginAsyncOperation(_asyncOperationId);
+            name = String.IsNullOrEmpty(name)
+                ? _asyncOperationId
+                : $"{_asyncOperationId} - {name}";
+            return _asyncListener.BeginAsyncOperation(name, tag, filePath: filePath, lineNumber: lineNumber);
         }
 
         protected void VerifySessionIsActive()

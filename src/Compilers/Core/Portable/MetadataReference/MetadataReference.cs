@@ -23,7 +23,7 @@ namespace Microsoft.CodeAnalysis
     {
         public MetadataReferenceProperties Properties { get; }
 
-        internal MetadataReference(MetadataReferenceProperties properties)
+        protected MetadataReference(MetadataReferenceProperties properties)
         {
             this.Properties = properties;
         }
@@ -58,7 +58,7 @@ namespace Microsoft.CodeAnalysis
         /// <exception cref="ArgumentException">Interop types can't be embedded from modules.</exception> 
         public MetadataReference WithEmbedInteropTypes(bool value)
         {
-            return WithProperties(new MetadataReferenceProperties(this.Properties.Kind, this.Properties.Aliases, value));
+            return WithProperties(Properties.WithEmbedInteropTypes(value));
         }
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace Microsoft.CodeAnalysis
         /// <exception cref="ArgumentException">Alias is invalid for the metadata kind.</exception> 
         public MetadataReference WithAliases(ImmutableArray<string> aliases)
         {
-            return WithProperties(new MetadataReferenceProperties(this.Properties.Kind, aliases, this.Properties.EmbedInteropTypes));
+            return WithProperties(Properties.WithAliases(aliases));
         }
 
         /// <summary>
@@ -100,7 +100,7 @@ namespace Microsoft.CodeAnalysis
         /// <para>
         /// It is recommended to use <see cref="AssemblyMetadata.CreateFromImage(ImmutableArray{byte})"/> or <see cref="ModuleMetadata.CreateFromImage(ImmutableArray{byte})"/> 
         /// API when creating multiple references to the same metadata.
-        /// Reusing <see cref="Metadata"/> object to create multiple references allows for sharing data accross these references.
+        /// Reusing <see cref="Metadata"/> object to create multiple references allows for sharing data across these references.
         /// </para> 
         /// <para>
         /// The method pins <paramref name="peImage"/> in managed heap. The pinned memory is released 
@@ -137,7 +137,7 @@ namespace Microsoft.CodeAnalysis
         /// <para>
         /// It is recommended to use <see cref="AssemblyMetadata.CreateFromImage(IEnumerable{byte})"/> or <see cref="ModuleMetadata.CreateFromImage(IEnumerable{byte})"/> 
         /// API when creating multiple references to the same metadata.
-        /// Reusing <see cref="Metadata"/> object to create multiple references allows for sharing data accross these references.
+        /// Reusing <see cref="Metadata"/> object to create multiple references allows for sharing data across these references.
         /// </para> 
         /// <para>
         /// The method makes a copy of the data and pins it. To avoid making a copy use an overload that takes an <see cref="ImmutableArray{T}"/>.
@@ -175,7 +175,7 @@ namespace Microsoft.CodeAnalysis
         /// <para>
         /// It is recommended to use <see cref="AssemblyMetadata.CreateFromStream(Stream, PEStreamOptions)"/> or <see cref="ModuleMetadata.CreateFromStream(Stream, PEStreamOptions)"/> 
         /// API when creating multiple references to the same metadata.
-        /// Reusing <see cref="Metadata"/> object to create multiple references allows for sharing data accross these references.
+        /// Reusing <see cref="Metadata"/> object to create multiple references allows for sharing data across these references.
         /// </para> 
         /// <para>
         /// The method eagerly reads the entire content of <paramref name="peStream"/> into native heap. The native memory block is released 
@@ -213,7 +213,7 @@ namespace Microsoft.CodeAnalysis
         /// <para>
         /// It is recommended to use <see cref="AssemblyMetadata.CreateFromFile(string)"/> or <see cref="ModuleMetadata.CreateFromFile(string)"/> 
         /// API when creating multiple references to the same file.
-        /// Reusing <see cref="Metadata"/> object allows for sharing data accross these references.
+        /// Reusing <see cref="Metadata"/> object allows for sharing data across these references.
         /// </para> 
         /// <para>
         /// The method eagerly reads the entire content of the file into native heap. The native memory block is released 
@@ -236,13 +236,12 @@ namespace Microsoft.CodeAnalysis
 
             if (properties.Kind == MetadataImageKind.Module)
             {
-                return module.GetReference(documentation, path);
+                return new MetadataImageReference(module, properties, documentation, path, display: null);
             }
 
             // any additional modules constituting the assembly will be read lazily:
             var assemblyMetadata = AssemblyMetadata.CreateFromFile(module, path);
-
-            return assemblyMetadata.GetReference(documentation, properties.Aliases, properties.EmbedInteropTypes, path);
+            return new MetadataImageReference(assemblyMetadata, properties, documentation, path, display: null);
         }
 
         /// <summary>
@@ -255,7 +254,7 @@ namespace Microsoft.CodeAnalysis
         /// Performance considerations:
         /// <para>
         /// It is recommended to use <see cref="AssemblyMetadata.CreateFromFile(string)"/> API when creating multiple references to the same assembly.
-        /// Reusing <see cref="AssemblyMetadata"/> object allows for sharing data accross these references.
+        /// Reusing <see cref="AssemblyMetadata"/> object allows for sharing data across these references.
         /// </para>
         /// </remarks>
         [Obsolete("Use CreateFromFile(assembly.Location) instead", error: true)]
@@ -283,7 +282,7 @@ namespace Microsoft.CodeAnalysis
         /// Performance considerations:
         /// <para>
         /// It is recommended to use <see cref="AssemblyMetadata.CreateFromFile(string)"/> API when creating multiple references to the same assembly.
-        /// Reusing <see cref="AssemblyMetadata"/> object allows for sharing data accross these references.
+        /// Reusing <see cref="AssemblyMetadata"/> object allows for sharing data across these references.
         /// </para>
         /// </remarks>
         [Obsolete("Use CreateFromFile(assembly.Location) instead", error: true)]
@@ -319,14 +318,24 @@ namespace Microsoft.CodeAnalysis
                 throw new ArgumentException(CodeAnalysisResources.CantCreateModuleReferenceToAssembly, nameof(properties));
             }
 
-            string location = AssemblyLocationLightUp.GetAssemblyLocation(assembly);
+            string location = CorLightup.Desktop.GetAssemblyLocation(assembly);
+            if (string.IsNullOrEmpty(location))
+            {
+                throw new NotSupportedException(CodeAnalysisResources.CantCreateReferenceToAssemblyWithoutLocation);
+            }
+
             Stream peStream = FileUtilities.OpenFileStream(location);
 
             // The file is locked by the CLR assembly loader, so we can create a lazily read metadata, 
             // which might also lock the file until the reference is GC'd.
             var metadata = AssemblyMetadata.CreateFromStream(peStream);
 
-            return metadata.GetReference(documentation, properties.Aliases, properties.EmbedInteropTypes, filePath: location);
+            return new MetadataImageReference(metadata, properties, documentation, location, display: null);
+        }
+
+        internal static bool HasMetadata(Assembly assembly)
+        {
+            return !assembly.IsDynamic && !string.IsNullOrEmpty(CorLightup.Desktop.GetAssemblyLocation(assembly));
         }
     }
 }

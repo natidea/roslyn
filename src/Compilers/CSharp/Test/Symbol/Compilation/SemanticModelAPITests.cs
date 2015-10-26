@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
+// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 using System;
 using System.Collections.Generic;
@@ -181,8 +181,8 @@ namespace Microsoft.CodeAnalysis.CSharp.UnitTests
             var text =
 @"
 // Peter Golde[7/19/2010]: I managed to construct the following interesting example today,
-// which Dev10 does compile. Interestingly, the resolution of one “using” can depend
-// on the resolution of another “using” later in the same namespace.
+// which Dev10 does compile. Interestingly, the resolution of one ""using"" can depend
+// on the resolution of another ""using"" later in the same namespace.
 using K = A.Q;
 using L = B.R;
  
@@ -634,7 +634,7 @@ partial class PC
             // the declaration one is what one can get from GetMembers()
             Assert.Same(pMethodSym, pmSym01);
 
-            // with decl|impl point to each nother
+            // with decl|impl point to each other
             Assert.Null(pmSym01.PartialDefinitionPart);
             Assert.Same(pmSym02, pmSym01.PartialImplementationPart);
 
@@ -2130,7 +2130,7 @@ class C
         }
 
         [Fact]
-        public void TestGetSpeculativeSemanticModelForInexerAccessorBody()
+        public void TestGetSpeculativeSemanticModelForIndexerAccessorBody()
         {
             var compilation = CreateCompilationWithMscorlib(@"
 class C 
@@ -2408,7 +2408,7 @@ class C
             TypeSyntax speculatedTypeSyntax,
             SpeculativeBindingOption bindingOption,
             SymbolKind expectedSymbolKind,
-            string expectedTypeDislayString)
+            string expectedTypeDisplayString)
         {
             Assert.False(model.IsSpeculativeSemanticModel);
             Assert.Null(model.ParentModel);
@@ -2427,12 +2427,12 @@ class C
             var symbol = speculativeModel.GetSymbolInfo(speculatedTypeSyntax).Symbol;
             Assert.NotNull(symbol);
             Assert.Equal(expectedSymbolKind, symbol.Kind);
-            Assert.Equal(expectedTypeDislayString, symbol.ToDisplayString());
+            Assert.Equal(expectedTypeDisplayString, symbol.ToDisplayString());
 
             var typeSymbol = speculativeModel.GetTypeInfo(speculatedTypeSyntax).Type;
             Assert.NotNull(symbol);
             Assert.Equal(expectedSymbolKind, symbol.Kind);
-            Assert.Equal(expectedTypeDislayString, symbol.ToDisplayString());
+            Assert.Equal(expectedTypeDisplayString, symbol.ToDisplayString());
 
             if (speculatedTypeSyntax.Kind() == SyntaxKind.QualifiedName)
             {
@@ -2441,12 +2441,12 @@ class C
                 symbol = speculativeModel.GetSymbolInfo(right).Symbol;
                 Assert.NotNull(symbol);
                 Assert.Equal(expectedSymbolKind, symbol.Kind);
-                Assert.Equal(expectedTypeDislayString, symbol.ToDisplayString());
+                Assert.Equal(expectedTypeDisplayString, symbol.ToDisplayString());
 
                 typeSymbol = speculativeModel.GetTypeInfo(right).Type;
                 Assert.NotNull(symbol);
                 Assert.Equal(expectedSymbolKind, symbol.Kind);
-                Assert.Equal(expectedTypeDislayString, symbol.ToDisplayString());
+                Assert.Equal(expectedTypeDisplayString, symbol.ToDisplayString());
             }
         }
 
@@ -3207,7 +3207,7 @@ class C
 
         [WorkItem(1019366, "DevDiv")]
         [WorkItem(273, "CodePlex")]
-        [Fact]
+        [ClrOnlyFact]
         public void Bug1019366()
         {
             var source = @"

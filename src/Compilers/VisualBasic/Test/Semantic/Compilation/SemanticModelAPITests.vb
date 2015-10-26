@@ -1664,7 +1664,7 @@ End Class
             Assert.Equal("z", parameterSymbol.Name)
         End Sub
 
-        Private Shared Sub TestGetSpeculativeSemanticModelForTypeSyntax_Common(model As SemanticModel, position As Integer, speculatedTypeSyntax As TypeSyntax, bindingOption As SpeculativeBindingOption, expectedSymbolKind As SymbolKind, expectedTypeDislayString As String)
+        Private Shared Sub TestGetSpeculativeSemanticModelForTypeSyntax_Common(model As SemanticModel, position As Integer, speculatedTypeSyntax As TypeSyntax, bindingOption As SpeculativeBindingOption, expectedSymbolKind As SymbolKind, expectedTypeDisplayString As String)
             Assert.False(model.IsSpeculativeSemanticModel)
             Assert.Null(model.ParentModel)
             Assert.Equal(0, model.OriginalPositionForSpeculation)
@@ -1681,12 +1681,12 @@ End Class
             Dim symbol = speculativeModel.GetSymbolInfo(speculatedTypeSyntax).Symbol
             Assert.NotNull(symbol)
             Assert.Equal(expectedSymbolKind, symbol.Kind)
-            Assert.Equal(expectedTypeDislayString, symbol.ToDisplayString())
+            Assert.Equal(expectedTypeDisplayString, symbol.ToDisplayString())
 
             Dim typeSymbol = speculativeModel.GetTypeInfo(speculatedTypeSyntax).Type
             Assert.NotNull(symbol)
             Assert.Equal(expectedSymbolKind, symbol.Kind)
-            Assert.Equal(expectedTypeDislayString, symbol.ToDisplayString())
+            Assert.Equal(expectedTypeDisplayString, symbol.ToDisplayString())
 
             Dim methodGroupInfo = speculativeModel.GetMemberGroup(speculatedTypeSyntax)
             Dim constantInfo = speculativeModel.GetConstantValue(speculatedTypeSyntax)
@@ -1696,12 +1696,12 @@ End Class
                 symbol = speculativeModel.GetSymbolInfo(right).Symbol
                 Assert.NotNull(symbol)
                 Assert.Equal(expectedSymbolKind, symbol.Kind)
-                Assert.Equal(expectedTypeDislayString, symbol.ToDisplayString())
+                Assert.Equal(expectedTypeDisplayString, symbol.ToDisplayString())
 
                 typeSymbol = speculativeModel.GetTypeInfo(right).Type
                 Assert.NotNull(symbol)
                 Assert.Equal(expectedSymbolKind, symbol.Kind)
-                Assert.Equal(expectedTypeDislayString, symbol.ToDisplayString())
+                Assert.Equal(expectedTypeDisplayString, symbol.ToDisplayString())
             End If
         End Sub
 
@@ -2617,7 +2617,7 @@ End Module
             Assert.True(semanticInfo.ImplicitConversion.IsWidening AndAlso semanticInfo.ImplicitConversion.IsReference, "Expected WideningReference")
             Assert.Equal(semanticInfo.ImplicitConversion, conv)
 
-            ' Auto-impled
+            ' Auto-implemented
             argList = DirectCast(CompilationUtils.FindNodeFromText(tree, "(AP)"), ArgumentListSyntax)
             arg = DirectCast(argList.ChildNodes().First(), SimpleArgumentSyntax).Expression
 
@@ -2900,7 +2900,7 @@ but specify providing one type on the lamb infer others")
             Dimect)(1, Function(a) a, Function(b) b, Func= Target5(Of Integer, Integer, Double, Objc) c, Function(d) d)
             Dim z1c 1, Function(a) a, Function(b) b, Function(get5(Of Integer, Integer, Object, Object)( in the lambdas
             Dim z1b = Tareneric types as well as the variable typesnt 
-            'Verify the return type G Different Types using generic Type argume c, Function(d) d)
+            'Verify the return type G Different Types using generic Type argument c, Function(d) d)
 
             'Specify Function(a) a, Function(b) b, Function(c)et5(Of Integer, Object, Object, Object)(1,e - All Object
             Dim z1a = Targ Generic Types which result in no inferenc   'SPECIFY TYPES
@@ -4111,7 +4111,7 @@ BC30002: Type 'A' is not defined.
             CompilationUtils.AssertTheseDiagnostics(errs, ExpectedErrors)
 
             'namespace starting with a string Global but not specifically Global.
-            Dim sourceWithaNameStartingGlobal = <compilation>
+            Dim sourceWithANameStartingGlobal = <compilation>
                                                     <file name="a.vb"><![CDATA[
             Namespace GlobalFoo
               Class C
@@ -4123,12 +4123,12 @@ BC30002: Type 'A' is not defined.
             End Namespace
                             ]]></file>
                                                 </compilation>
-            compilation = CreateCompilationWithMscorlibAndVBRuntimeAndReferences(sourceWithaNameStartingGlobal, Nothing)
+            compilation = CreateCompilationWithMscorlibAndVBRuntimeAndReferences(sourceWithANameStartingGlobal, Nothing)
             semanticModel = GetSemanticModel(compilation, "a.vb")
             errs = semanticModel.GetMethodBodyDiagnostics()
             CompilationUtils.AssertTheseDiagnostics(errs, ExpectedErrors)
 
-            compilation = CreateCompilationWithMscorlibAndVBRuntimeAndReferences(sourceWithaNameStartingGlobal, Nothing, TestOptions.ReleaseDll.WithRootNamespace("ClassLibrary1"))
+            compilation = CreateCompilationWithMscorlibAndVBRuntimeAndReferences(sourceWithANameStartingGlobal, Nothing, TestOptions.ReleaseDll.WithRootNamespace("ClassLibrary1"))
             semanticModel = GetSemanticModel(compilation, "a.vb")
             errs = semanticModel.GetMethodBodyDiagnostics()
             CompilationUtils.AssertTheseDiagnostics(errs, ExpectedErrors)

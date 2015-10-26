@@ -1910,7 +1910,7 @@ public class foo
         }
 
         [Fact]
-        public void ExoressionsInDefaultCheckedContext()
+        public void ExpressionsInDefaultCheckedContext()
         {
             // Expressions which are in unchecked statement are in explicitly unchecked context.
             // Expressions which are out of unchecked statement are in default checked context.
@@ -2903,7 +2903,7 @@ void f() { if () const int i = 0; }
     }
 
 
-    internal sealed class BoundTreeSequencer : BoundTreeWalker
+    internal sealed class BoundTreeSequencer : BoundTreeWalkerWithStackGuard
     {
         public static IEnumerable<BoundNode> GetNodes(BoundNode root)
         {
@@ -2927,6 +2927,11 @@ void f() { if () const int i = 0; }
                 _list.Add(node);
             }
             return base.Visit(node);
+        }
+
+        protected override bool ConvertInsufficientExecutionStackExceptionToCancelledByStackGuardException()
+        {
+            return false;
         }
     }
 }

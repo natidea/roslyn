@@ -129,7 +129,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             Debug.Assert(System.Linq.Enumerable.Contains(result.Syntax.AncestorsAndSelf(), node), @"Bound statement (or one of its parents) 
                                                                             should have same syntax as the given syntax node. 
-                                                                            Otherwise it may be confusung to the binder cache that uses syntax node as keys.");
+                                                                            Otherwise it may be confusing to the binder cache that uses syntax node as keys.");
 
             return result;
         }
@@ -213,6 +213,10 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 Error(diagnostics, ErrorCode.ERR_BadYieldInCatch, node.YieldKeyword);
             }
+            else if (BindingTopLevelScriptCode)
+            {
+                Error(diagnostics, ErrorCode.ERR_YieldNotAllowedInScript, node.YieldKeyword);
+            }
 
             return new BoundYieldReturnStatement(node, argument);
         }
@@ -222,6 +226,10 @@ namespace Microsoft.CodeAnalysis.CSharp
             if (this.Flags.Includes(BinderFlags.InFinallyBlock))
             {
                 Error(diagnostics, ErrorCode.ERR_BadYieldInFinally, node.YieldKeyword);
+            }
+            else if (BindingTopLevelScriptCode)
+            {
+                Error(diagnostics, ErrorCode.ERR_YieldNotAllowedInScript, node.YieldKeyword);
             }
 
             GetIteratorElementType(node, diagnostics);
@@ -342,7 +350,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             var result = LookupResult.GetInstance();
             HashSet<DiagnosticInfo> useSiteDiagnostics = null;
-            this.LookupSymbolsWithFallback(result, node.Identifier.ValueText, arity: 0, useSiteDiagnostics: ref useSiteDiagnostics, options: LookupOptions.LabelsOnly);
+            var binder = this.LookupSymbolsWithFallback(result, node.Identifier.ValueText, arity: 0, useSiteDiagnostics: ref useSiteDiagnostics, options: LookupOptions.LabelsOnly);
 
             // result.Symbols can be empty in some malformed code, e.g. when a labeled statement is used an embedded statement in an if or foreach statement    
             // In this case we create new label symbol on the fly, and an error is reported by parser
@@ -357,14 +365,18 @@ namespace Microsoft.CodeAnalysis.CSharp
             }
 
             // check to see if this label (illegally) hides a label from an enclosing scope
-            result.Clear();
-            this.Next.LookupSymbolsWithFallback(result, node.Identifier.ValueText, arity: 0, useSiteDiagnostics: ref useSiteDiagnostics, options: LookupOptions.LabelsOnly);
-            if (result.IsMultiViable)
+            if (binder != null)
             {
-                // The label '{0}' shadows another label by the same name in a contained scope
-                Error(diagnostics, ErrorCode.ERR_LabelShadow, node.Identifier, node.Identifier.ValueText);
-                hasError = true;
+                result.Clear();
+                binder.Next.LookupSymbolsWithFallback(result, node.Identifier.ValueText, arity: 0, useSiteDiagnostics: ref useSiteDiagnostics, options: LookupOptions.LabelsOnly);
+                if (result.IsMultiViable)
+                {
+                    // The label '{0}' shadows another label by the same name in a contained scope
+                    Error(diagnostics, ErrorCode.ERR_LabelShadow, node.Identifier, node.Identifier.ValueText);
+                    hasError = true;
+                }
             }
+
             diagnostics.Add(node, useSiteDiagnostics);
             result.Free();
 
@@ -430,7 +442,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 expressionStatement = new BoundExpressionStatement(node, expression);
             }
 
-            CheckForUnobservedAwaitable(expressionStatement, diagnostics);
+            CheckForUnobservedAwaitable(expression, diagnostics);
 
             return expressionStatement;
         }
@@ -441,46 +453,8 @@ namespace Microsoft.CodeAnalysis.CSharp
         /// <remarks>
         /// The checks here are equivalent to StatementBinder::CheckForUnobservedAwaitable() in the native compiler.
         /// </remarks>
-        private void CheckForUnobservedAwaitable(BoundExpressionStatement expressionStatement, DiagnosticBag diagnostics)
+        private void CheckForUnobservedAwaitable(BoundExpression expression, DiagnosticBag diagnostics)
         {
-            if (expressionStatement == null)
-            {
-                return;
-            }
-
-            BoundExpression expression = expressionStatement.Expression;
-
-            // If we don't have an expression or it doesn't have a type, just bail out
-            // now. Also, the dynamic type is always awaitable in an async method and
-            // could generate a lot of noise if we warned on it. Finally, we only want
-            // to warn on method calls, not other kinds of expressions.
-
-            if (expression == null
-                || expression.Kind != BoundKind.Call
-                || (object)expression.Type == null
-                || expression.Type.IsDynamic()
-                || expression.Type.SpecialType == SpecialType.System_Void)
-            {
-                return;
-            }
-
-            var call = (BoundCall)expression;
-
-            // First check if the target method is async.
-            if ((object)call.Method != null && call.Method.IsAsync)
-            {
-                Error(diagnostics, ErrorCode.WRN_UnobservedAwaitableExpression, expression.Syntax);
-                return;
-            }
-
-            // Then check if the method call returns a WinRT async type.
-            if (ImplementsWinRTAsyncInterface(call.Type))
-            {
-                Error(diagnostics, ErrorCode.WRN_UnobservedAwaitableExpression, expression.Syntax);
-                return;
-            }
-
-            // Finally, if we're in an async method, and the expression could be be awaited, report that it is instead discarded.
             if (CouldBeAwaited(expression))
             {
                 Error(diagnostics, ErrorCode.WRN_UnobservedAwaitableExpression, expression.Syntax);
@@ -1015,8 +989,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             switch (kind)
             {
                 default:
-                    Debug.Assert(false, "bad BindValueKind");
-                    goto case BindValueKind.Assignment;
+                    throw ExceptionUtilities.UnexpectedValue(kind);
                 case BindValueKind.CompoundAssignment:
                 case BindValueKind.Assignment:
                     return ErrorCode.ERR_AssgReadonlyLocal;
@@ -1042,8 +1015,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 case BindValueKind.AddressOf:
                     return ErrorCode.ERR_InvalidAddrOp;
                 default:
-                    Debug.Assert(false, "bad BindValueKind");
-                    goto case BindValueKind.Assignment;
+                    throw ExceptionUtilities.UnexpectedValue(kind);
             }
         }
 
@@ -1599,10 +1571,11 @@ namespace Microsoft.CodeAnalysis.CSharp
                 case SyntaxKind.IdentifierName:
                     eventSyntax = syntax;
                     break;
-                default:
-                    Debug.Assert(false, "Unexpected syntax: " + syntax.Kind());
-                    eventSyntax = syntax;
+                case SyntaxKind.MemberBindingExpression:
+                    eventSyntax = ((MemberBindingExpressionSyntax)syntax).Name;
                     break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(syntax.Kind());
             }
 
             BoundEventAccess eventAccess = (BoundEventAccess)expr;
@@ -1965,7 +1938,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         private static bool IsConstructorOrField(Symbol member, bool isStatic)
         {
-            return  (member as MethodSymbol)?.MethodKind == (isStatic ?
+            return (member as MethodSymbol)?.MethodKind == (isStatic ?
                                                                 MethodKind.StaticConstructor :
                                                                 MethodKind.Constructor) ||
                     (member as FieldSymbol)?.IsStatic == isStatic;
@@ -2202,7 +2175,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             var delegateType = targetType.GetDelegateType();
 
-            // The target type is a vaid delegate or expression tree type. Is there something wrong with the 
+            // The target type is a valid delegate or expression tree type. Is there something wrong with the 
             // parameter list?
 
             // First off, is there a parameter list at all?
@@ -2305,7 +2278,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                     var delegateParameterType = delegateParameters[i].Type;
                     var delegateRefKind = delegateParameters[i].RefKind;
 
-                    if (!lambdaParameterType.Equals(delegateParameterType, ignoreCustomModifiers: true, ignoreDynamic: true))
+                    if (!lambdaParameterType.Equals(delegateParameterType, ignoreCustomModifiersAndArraySizesAndLowerBounds: true, ignoreDynamic: true))
                     {
                         SymbolDistinguisher distinguisher = new SymbolDistinguisher(this.Compilation, lambdaParameterType, delegateParameterType);
 
@@ -2829,14 +2802,18 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 arg = BindValue(expressionSyntax, diagnostics, BindValueKind.RValue);
             }
+            else
+            {
+                // If this is a void return statement in a script, return default(T).
+                var interactiveInitializerMethod = this.ContainingMemberOrLambda as SynthesizedInteractiveInitializerMethod;
+                if (interactiveInitializerMethod != null)
+                {
+                    arg = new BoundDefaultOperator(interactiveInitializerMethod.GetNonNullSyntaxNode(), interactiveInitializerMethod.ResultType);
+                }
+            }
 
             bool hasErrors;
-            if (BindingTopLevelScriptCode)
-            {
-                diagnostics.Add(ErrorCode.ERR_ReturnNotAllowedInScript, syntax.ReturnKeyword.GetLocation());
-                hasErrors = true;
-            }
-            else if (IsDirectlyInIterator)
+            if (IsDirectlyInIterator)
             {
                 diagnostics.Add(ErrorCode.ERR_ReturnInIterator, syntax.ReturnKeyword.GetLocation());
                 hasErrors = true;
@@ -3199,7 +3176,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                     // Don't mark compiler generated so that the rewriter generates sequence points
                     var expressionStatement = new BoundExpressionStatement(syntax, expression, errors);
 
-                    CheckForUnobservedAwaitable(expressionStatement, diagnostics);
+                    CheckForUnobservedAwaitable(expression, diagnostics);
                     statement = expressionStatement;
                 }
                 else

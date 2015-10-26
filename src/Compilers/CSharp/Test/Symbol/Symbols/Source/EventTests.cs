@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
+// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 using System;
 using System.Linq;
@@ -230,7 +230,7 @@ class C
         }
 
 
-        [Fact]
+        [ClrOnlyFact]
         public void EventInvocation()
         {
             var text =
@@ -307,7 +307,7 @@ public class E
 
         [WorkItem(542748, "DevDiv")]
         [Fact()]
-        public void FieldLikeEventAceessorIsSynthesized()
+        public void FieldLikeEventAccessorIsSynthesized()
         {
             var text = @"
 delegate void D();
@@ -1897,7 +1897,7 @@ namespace ConsoleApplication3
         public abstract event Action MyEvent;
     }
 
-    public class SuperWithOverridenEvent : BaseWithAbstractEvent
+    public class SuperWithOverriddenEvent : BaseWithAbstractEvent
     {
         public override event Action MyEvent
         {
@@ -1915,7 +1915,7 @@ namespace ConsoleApplication3
     {
         static void Main()
         {
-            SuperWithOverridenEvent swoe = new SuperWithOverridenEvent();
+            SuperWithOverriddenEvent swoe = new SuperWithOverriddenEvent();
             swoe.MyEvent += Main;
         }
     }

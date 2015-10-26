@@ -22,7 +22,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
     ' For switch table based approach we have an option of completely rewriting the switch header
     ' and switch sections into simpler constructs, i.e. we can rewrite the select header
     ' using bound conditional goto statements and the rewrite the case blocks into
-    ' bound labeleled statements.
+    ' bound labeled statements.
     ' However, all the logic for emitting the switch jump tables is language agnostic
     ' and includes IL optimizations. Hence we delay the switch jump table generation
     ' till the emit phase. This way we also get additional benefit of sharing this code
@@ -41,7 +41,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
     ' We need to emit this function to compute the hash value into the compiler generated
     ' <PrivateImplementationDetails> class. 
     ' If we have at least one string type select case statement in a module that needs a
-    ' hash table based jump table, we generate a single public string hash sythesized method (SynthesizedStringSwitchHashMethod)
+    ' hash table based jump table, we generate a single public string hash synthesized method (SynthesizedStringSwitchHashMethod)
     ' that is shared across the module.
 
 

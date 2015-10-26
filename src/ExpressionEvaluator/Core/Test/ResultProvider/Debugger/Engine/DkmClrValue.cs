@@ -241,15 +241,15 @@ namespace Microsoft.VisualStudio.Debugger.Evaluation.ClrCompilation
                     string name = formatString.Substring(openPos + 1, i - openPos - 1);
                     openPos = -1;
 
-                    var formatSpecifers = Formatter.NoFormatSpecifiers;
+                    var formatSpecifiers = Formatter.NoFormatSpecifiers;
                     int commaIndex = name.IndexOf(',');
                     if (commaIndex >= 0)
                     {
                         var rawFormatSpecifiers = name.Substring(commaIndex + 1).Split(',');
                         var trimmedFormatSpecifiers = ArrayBuilder<string>.GetInstance(rawFormatSpecifiers.Length);
                         trimmedFormatSpecifiers.AddRange(rawFormatSpecifiers.Select(fs => fs.Trim()));
-                        formatSpecifers = trimmedFormatSpecifiers.ToImmutableAndFree();
-                        foreach (var formatSpecifier in formatSpecifers)
+                        formatSpecifiers = trimmedFormatSpecifiers.ToImmutableAndFree();
+                        foreach (var formatSpecifier in formatSpecifiers)
                         {
                             if (formatSpecifier == "nq")
                             {
@@ -338,7 +338,7 @@ namespace Microsoft.VisualStudio.Debugger.Evaluation.ClrCompilation
                         }
                     }
 
-                    builder.Append(exprValue.GetValueString(inspectionContext, formatSpecifers)); // Re-enter the formatter.
+                    builder.Append(exprValue.GetValueString(inspectionContext, formatSpecifiers)); // Re-enter the formatter.
                 }
                 else if (openPos < 0)
                 {
@@ -501,17 +501,7 @@ namespace Microsoft.VisualStudio.Debugger.Evaluation.ClrCompilation
             Type type;
             if (value is System.Reflection.Pointer)
             {
-                unsafe
-                {
-                    if (Environment.Is64BitProcess)
-                    {
-                        value = (long)System.Reflection.Pointer.Unbox(value);
-                    }
-                    else
-                    {
-                        value = (int)System.Reflection.Pointer.Unbox(value);
-                    }
-                }
+                value = UnboxPointer(value);
                 type = declaredType;
             }
             else if (value == null || declaredType.IsNullable())
@@ -533,6 +523,21 @@ namespace Microsoft.VisualStudio.Debugger.Evaluation.ClrCompilation
                 valueFlags: DkmClrValueFlags.None,
                 category: category,
                 access: access);
+        }
+
+        internal static unsafe object UnboxPointer(object value)
+        {
+            unsafe
+            {
+                if (Environment.Is64BitProcess)
+                {
+                    return (long)System.Reflection.Pointer.Unbox(value);
+                }
+                else
+                {
+                    return (int)System.Reflection.Pointer.Unbox(value);
+                }
+            }
         }
 
         public DkmClrValue GetArrayElement(int[] indices, DkmInspectionContext inspectionContext)
@@ -626,7 +631,7 @@ namespace Microsoft.VisualStudio.Debugger.Evaluation.ClrCompilation
         {
             if (inspectionContext == null)
             {
-                throw new ArgumentNullException("inspectionContext");
+                throw new ArgumentNullException(nameof(inspectionContext));
             }
 
             var module = new DkmClrModuleInstance(

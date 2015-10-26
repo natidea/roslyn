@@ -358,7 +358,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                         for (int i = node.RankSpecifiers.Count - 1; i >= 0; i--)
                         {
                             var a = node.RankSpecifiers[i];
-                            type = new ArrayTypeSymbol(this.Compilation.Assembly, type, ImmutableArray<CustomModifier>.Empty, a.Rank);
+                            type = ArrayTypeSymbol.CreateCSharpArray(this.Compilation.Assembly, type, ImmutableArray<CustomModifier>.Empty, a.Rank);
                         }
 
                         return type;
@@ -546,8 +546,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             if (node.IsTypeInContextWhichNeedsDynamicAttribute())
             {
-                if ((object)this.Compilation.GetWellKnownTypeMember(WellKnownMember.System_Runtime_CompilerServices_DynamicAttribute__ctor) == null ||
-                    (object)this.Compilation.GetWellKnownTypeMember(WellKnownMember.System_Runtime_CompilerServices_DynamicAttribute__ctorTransformFlags) == null)
+                if (!Compilation.HasDynamicEmitAttributes())
                 {
                     // CONSIDER:    Native compiler reports error CS1980 for each syntax node which binds to dynamic type, we do the same by reporting a diagnostic here.
                     //              However, this means we generate multiple duplicate diagnostics, when a single one would suffice.
@@ -703,7 +702,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                         UnboundArgumentErrorTypeSymbol.CreateTypeArguments(
                             unconstructedType.TypeParameters,
                             node.Arity,
-                            errorInfo: null));
+                            errorInfo: null), 
+                        unbound:false);
                 }
                 else
                 {
@@ -1008,7 +1008,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 : null;
         }
 
-        internal static bool TryGetSpecialTypeMember<TSymbol>(CSharpCompilation compilation, SpecialMember specialMember, CSharpSyntaxNode syntax, DiagnosticBag diagnostics, out TSymbol symbol) 
+        internal static bool TryGetSpecialTypeMember<TSymbol>(CSharpCompilation compilation, SpecialMember specialMember, CSharpSyntaxNode syntax, DiagnosticBag diagnostics, out TSymbol symbol)
             where TSymbol : Symbol
         {
             symbol = (TSymbol)compilation.GetSpecialTypeMember(specialMember);
@@ -1420,7 +1420,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                                 //  SPEC:   If an attribute class is found both with and without Attribute suffix, an ambiguity 
                                 //  SPEC:   is present, and a compile-time error results.
 
-                                info = new CSDiagnosticInfo(ErrorCode.ERR_AmbigousAttribute, originalSymbols,
+                                info = new CSDiagnosticInfo(ErrorCode.ERR_AmbiguousAttribute, originalSymbols,
                                     new object[] { where, first, second });
                             }
                             else
@@ -1914,7 +1914,16 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         internal static void CheckFeatureAvailability(Location location, MessageID feature, DiagnosticBag diagnostics)
         {
-            LanguageVersion availableVersion = ((CSharpParseOptions)location.SourceTree.Options).LanguageVersion;
+            var options = (CSharpParseOptions)location.SourceTree.Options;
+            if (feature.RequiredFeature() != null)
+            {
+                if (!options.IsFeatureEnabled(feature))
+                {
+                    diagnostics.Add(ErrorCode.ERR_FeatureIsExperimental, location, feature.Localize());
+                }
+                return;
+            }
+            LanguageVersion availableVersion = options.LanguageVersion;
             LanguageVersion requiredVersion = feature.RequiredVersion();
             if (requiredVersion > availableVersion)
             {

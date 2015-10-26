@@ -28,7 +28,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Return Scan()
         End Function
 
-        Friend Sub New(info As FlowAnalysisInfo, region As FlowAnalysisRegionInfo)
+        Private Sub New(info As FlowAnalysisInfo, region As FlowAnalysisRegionInfo)
             MyBase.New(info, region)
         End Sub
 
@@ -39,12 +39,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Return MyBase.VisitLocalDeclaration(node)
         End Function
 
-        Protected Overrides Sub VisitForStatementVariableDeclation(node As BoundForStatement)
+        Protected Overrides Sub VisitForStatementVariableDeclaration(node As BoundForStatement)
             If IsInside AndAlso
                     node.DeclaredOrInferredLocalOpt IsNot Nothing Then
                 _variablesDeclared.Add(node.DeclaredOrInferredLocalOpt)
             End If
-            MyBase.VisitForStatementVariableDeclation(node)
+            MyBase.VisitForStatementVariableDeclaration(node)
         End Sub
 
         Public Overrides Function VisitLambda(node As BoundLambda) As BoundNode

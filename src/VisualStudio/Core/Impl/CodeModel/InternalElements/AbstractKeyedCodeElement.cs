@@ -4,14 +4,13 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using Microsoft.CodeAnalysis;
-using Microsoft.VisualStudio.LanguageServices.Implementation.Interop;
 using Microsoft.VisualStudio.LanguageServices.Implementation.Utilities;
 using Roslyn.Utilities;
 
 namespace Microsoft.VisualStudio.LanguageServices.Implementation.CodeModel.InternalElements
 {
     /// <summary>
-    /// This is the base class of all code elements located with a SyntaxNodeKey.
+    /// This is the base class of all code elements identified by a SyntaxNodeKey.
     /// </summary>
     public abstract class AbstractKeyedCodeElement : AbstractCodeElement
     {
@@ -44,7 +43,6 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.CodeModel.Inter
         internal SyntaxNodeKey NodeKey
         {
             get { return _nodeKey; }
-            set { _nodeKey = value; }
         }
 
         internal bool IsUnknown
@@ -65,7 +63,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.CodeModel.Inter
         /// <summary>
         /// This function re-acquires the key for this code element using the given syntax path.
         /// </summary>
-        internal void ReaquireNodeKey(SyntaxPath syntaxPath, CancellationToken cancellationToken)
+        internal void ReacquireNodeKey(SyntaxPath syntaxPath, CancellationToken cancellationToken)
         {
             Debug.Assert(syntaxPath != null);
 
@@ -75,12 +73,14 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.CodeModel.Inter
                 throw Exceptions.ThrowEFail();
             }
 
-            var nodeKey = CodeModelService.GetNodeKey(node);
+            var newNodeKey = CodeModelService.GetNodeKey(node);
 
-            FileCodeModel.ResetElementNodeKey(this, nodeKey);
+            FileCodeModel.UpdateCodeElementNodeKey(this, _nodeKey, newNodeKey);
+
+            _nodeKey = newNodeKey;
         }
 
-        protected void UpdateNodeAndReaquireNodeKey<T>(Action<SyntaxNode, T> updater, T value, bool trackKinds = true)
+        protected void UpdateNodeAndReacquireNodeKey<T>(Action<SyntaxNode, T> updater, T value, bool trackKinds = true)
         {
             FileCodeModel.EnsureEditor(() =>
             {
@@ -91,7 +91,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.CodeModel.Inter
 
                 updater(node, value);
 
-                ReaquireNodeKey(nodePath, CancellationToken.None);
+                ReacquireNodeKey(nodePath, CancellationToken.None);
             });
         }
 

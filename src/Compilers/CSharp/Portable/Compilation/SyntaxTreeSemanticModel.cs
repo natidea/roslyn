@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -26,6 +25,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         private readonly BinderFactory _binderFactory;
         private Func<CSharpSyntaxNode, MemberSemanticModel> _createMemberModelFunction;
         private readonly bool _ignoresAccessibility;
+        private ScriptLocalScopeBinder.Labels _globalStatementLabels;
 
         private static readonly Func<CSharpSyntaxNode, bool> s_isMemberDeclarationFunction = IsMemberDeclaration;
 
@@ -103,28 +103,28 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             VerifySpanForGetDiagnostics(span);
             return Compilation.GetDiagnosticsForSyntaxTree(
-                CompilationStage.Parse, this.SyntaxTree, span, false, cancellationToken);
+                CompilationStage.Parse, this.SyntaxTree, span, includeEarlierStages: false, cancellationToken: cancellationToken);
         }
 
         public override ImmutableArray<Diagnostic> GetDeclarationDiagnostics(TextSpan? span = null, CancellationToken cancellationToken = default(CancellationToken))
         {
             VerifySpanForGetDiagnostics(span);
             return Compilation.GetDiagnosticsForSyntaxTree(
-                CompilationStage.Declare, this.SyntaxTree, span, false, cancellationToken);
+                CompilationStage.Declare, this.SyntaxTree, span, includeEarlierStages: false, cancellationToken: cancellationToken);
         }
 
         public override ImmutableArray<Diagnostic> GetMethodBodyDiagnostics(TextSpan? span = null, CancellationToken cancellationToken = default(CancellationToken))
         {
             VerifySpanForGetDiagnostics(span);
             return Compilation.GetDiagnosticsForSyntaxTree(
-                CompilationStage.Compile, this.SyntaxTree, span, false, cancellationToken);
+                CompilationStage.Compile, this.SyntaxTree, span, includeEarlierStages: false, cancellationToken: cancellationToken);
         }
 
         public override ImmutableArray<Diagnostic> GetDiagnostics(TextSpan? span = null, CancellationToken cancellationToken = default(CancellationToken))
         {
             VerifySpanForGetDiagnostics(span);
             return Compilation.GetDiagnosticsForSyntaxTree(
-                CompilationStage.Compile, this.SyntaxTree, span, true, cancellationToken);
+                CompilationStage.Compile, this.SyntaxTree, span, includeEarlierStages: true, cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -483,8 +483,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                 throw new ArgumentNullException(nameof(destination));
             }
 
-            // TODO(cyrusn): Check arguments.  This is a public entrypoint, so we must do appropriate
-            // checks here.  However, no other methods in this type do any checking currently.  SO i'm
+            // TODO(cyrusn): Check arguments. This is a public entrypoint, so we must do appropriate
+            // checks here. However, no other methods in this type do any checking currently. So I'm
             // going to hold off on this until we do a full sweep of the API.
 
             var model = this.GetMemberModel(expression);
@@ -947,8 +947,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                                     GetFieldOrPropertyInitializerBinder(enumSymbol, outer));
                             }
                         default:
-                            Debug.Assert(false, "Unexpected node: " + node.Parent);
-                            return null;
+                            throw ExceptionUtilities.UnexpectedValue(node.Parent.Kind());
                     }
 
                 case SyntaxKind.ArrowExpressionClause:
@@ -980,14 +979,27 @@ namespace Microsoft.CodeAnalysis.CSharp
                 case SyntaxKind.GlobalStatement:
                     {
                         Debug.Assert(!this.IsRegularCSharp);
+                        var parent = node.Parent;
                         // TODO (tomat): handle misplaced global statements
-                        if (node.Parent.Kind() == SyntaxKind.CompilationUnit)
+                        if (parent.Kind() == SyntaxKind.CompilationUnit)
                         {
-                            var scriptConstructor = this.Compilation.ScriptClass.InstanceConstructors.First();
+                            var scriptInitializer = _compilation.ScriptClass.GetScriptInitializer();
+                            Debug.Assert((object)scriptInitializer != null);
+                            if ((object)scriptInitializer == null)
+                            {
+                                return null;
+                            }
+
+                            // Share labels across all global statements.
+                            if (_globalStatementLabels == null)
+                            {
+                                Interlocked.CompareExchange(ref _globalStatementLabels, new ScriptLocalScopeBinder.Labels(scriptInitializer, (CompilationUnitSyntax)parent), null);
+                            }
+
                             return MethodBodySemanticModel.Create(
                                 this.Compilation,
-                                scriptConstructor,
-                                outer,
+                                scriptInitializer,
+                                new ScriptLocalScopeBinder(_globalStatementLabels, outer),
                                 node);
                         }
                     }
@@ -1342,8 +1354,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                     return this.GetDeclaredMember(container, declarationSyntax.Span) as MethodSymbol;
 
                 default:
-                    Debug.Assert(false, "Accessor unexpectedly attached to " + propertyOrEventDecl.Kind());
-                    return null;
+                    throw ExceptionUtilities.UnexpectedValue(propertyOrEventDecl.Kind());
             }
         }
 
@@ -1452,8 +1463,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                     return null;
 
                 default:
-                    Debug.Assert(false, "Unexpected declaration: " + declaration);
-                    return null;
+                    throw ExceptionUtilities.UnexpectedValue(declaration.Kind());
             }
         }
 
@@ -1638,7 +1648,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             }
 
             InContainerBinder binder = _binderFactory.GetImportsBinder(declarationSyntax.Parent);
-            var imports = binder.GetImports();
+            var imports = binder.GetImports(basesBeingResolved: null);
             var alias = imports.UsingAliases[declarationSyntax.Alias.Name.Identifier.ValueText];
 
             if ((object)alias.Alias == null)
@@ -1669,7 +1679,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             CheckSyntaxNode(declarationSyntax);
 
             var binder = _binderFactory.GetImportsBinder(declarationSyntax.Parent);
-            var imports = binder.GetImports();
+            var imports = binder.GetImports(basesBeingResolved: null);
 
             // TODO: If this becomes a bottleneck, put the extern aliases in a dictionary, as for using aliases.
             foreach (var alias in imports.ExternAliases)
@@ -1973,7 +1983,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                     return this.Compilation.ScriptClass;
                 }
 
-                // top-level type type in an explicitly declared namespace:
+                // top-level type in an explicitly declared namespace:
                 if (SyntaxFacts.IsTypeDeclaration(memberDeclaration.Kind()))
                 {
                     return _compilation.Assembly.GlobalNamespace;

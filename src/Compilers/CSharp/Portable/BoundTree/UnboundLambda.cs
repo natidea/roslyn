@@ -11,6 +11,7 @@ using Microsoft.CodeAnalysis.CSharp.Symbols;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.CodeAnalysis.Collections;
+using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.CSharp
 {
@@ -48,7 +49,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             Debug.Assert(
                 syntax.IsAnonymousFunction() ||                                                                 // lambda expressions
-                syntax is ExpressionSyntax && LambdaUtilities.IsLambdaBody(syntax, allowReducedLambas: true) || // query lambdas
+                syntax is ExpressionSyntax && LambdaUtilities.IsLambdaBody(syntax, allowReducedLambdas: true) || // query lambdas
                 LambdaUtilities.IsQueryPairLambda(syntax)                                                       // "pair" lambdas in queries
             );
         }
@@ -144,10 +145,19 @@ namespace Microsoft.CodeAnalysis.CSharp
                 return result;
             }
 
-            public override BoundNode VisitLambda(BoundLambda node)
+            public override BoundNode Visit(BoundNode node)
             {
-                // Do not recurse into nested lambdas; we don't want their returns.
+                if (!(node is BoundExpression))
+                {
+                    return base.Visit(node);
+                }
+
                 return null;
+            }
+
+            protected override BoundExpression VisitExpressionWithoutStackGuard(BoundExpression node)
+            {
+                throw ExceptionUtilities.Unreachable;
             }
 
             public override BoundNode VisitReturnStatement(BoundReturnStatement node)
@@ -367,7 +377,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 }
                 else
                 {
-                    block = FlowAnalysisPass.AppendImplicitReturn(block, lambdaSymbol, _unboundLambda.Syntax);
+                    block = FlowAnalysisPass.AppendImplicitReturn(block, lambdaSymbol);
                 }
             }
 
@@ -670,7 +680,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             int codeCompare = xCode.CompareTo(yCode);
 
-            // ToString fails for a diagnostic with an error code that does not prevernt successful delegate conversion.
+            // ToString fails for a diagnostic with an error code that does not prevent successful delegate conversion.
             // Also, the order doesn't matter, since all such diagnostics will be dropped.
             if (!ErrorFacts.PreventsSuccessfulDelegateConversion(xCode) || !ErrorFacts.PreventsSuccessfulDelegateConversion(yCode))
             {

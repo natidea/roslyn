@@ -15,12 +15,10 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.CodeRefactorings.Introd
 
         protected void Test(string initial, string expected, int index = 0, bool compareTokens = true)
         {
-#if SCRIPTING
             Test(initial, expected, Options.Script, index, compareTokens);
-#endif
         }
 
-        [Fact(Skip = "https://github.com/dotnet/roslyn/issues/2888"), Trait(Traits.Feature, Traits.Features.CodeActionsIntroduceVariable)]
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsIntroduceVariable)]
         public void TestMethodFix1()
         {
             Test(
@@ -29,7 +27,7 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.CodeRefactorings.Introd
                 index: 2);
         }
 
-        [Fact(Skip = "https://github.com/dotnet/roslyn/issues/2888"), Trait(Traits.Feature, Traits.Features.CodeActionsIntroduceVariable)]
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsIntroduceVariable)]
         public void TestMethodFix2()
         {
             Test(
@@ -38,7 +36,7 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.CodeRefactorings.Introd
                 index: 3);
         }
 
-        [Fact(Skip = "https://github.com/dotnet/roslyn/issues/2888"), Trait(Traits.Feature, Traits.Features.CodeActionsIntroduceVariable)]
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsIntroduceVariable)]
         public void TestFieldFix1()
         {
             var code =
@@ -51,7 +49,7 @@ int i = V + (1 + 1);";
             Test(code, expected, index: 0, compareTokens: false);
         }
 
-        [Fact(Skip = "https://github.com/dotnet/roslyn/issues/2888"), Trait(Traits.Feature, Traits.Features.CodeActionsIntroduceVariable)]
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsIntroduceVariable)]
         public void TestFieldFix2()
         {
             var code =
@@ -64,7 +62,7 @@ int i = V + V;";
             Test(code, expected, index: 1, compareTokens: false);
         }
 
-        [Fact(Skip = "https://github.com/dotnet/roslyn/issues/2888"), Trait(Traits.Feature, Traits.Features.CodeActionsIntroduceVariable)]
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsIntroduceVariable)]
         public void TestParameterFix1()
         {
             Test(
@@ -73,7 +71,7 @@ int i = V + V;";
                 index: 0);
         }
 
-        [Fact(Skip = "https://github.com/dotnet/roslyn/issues/2888"), Trait(Traits.Feature, Traits.Features.CodeActionsIntroduceVariable)]
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsIntroduceVariable)]
         public void TestParameterFix2()
         {
             Test(
@@ -82,7 +80,7 @@ int i = V + V;";
                 index: 1);
         }
 
-        [Fact(Skip = "https://github.com/dotnet/roslyn/issues/2888")]
+        [WpfFact]
         public void TestAttributeFix1()
         {
             Test(
@@ -91,7 +89,7 @@ int i = V + V;";
                 index: 0);
         }
 
-        [Fact(Skip = "https://github.com/dotnet/roslyn/issues/2888"), Trait(Traits.Feature, Traits.Features.CodeActionsIntroduceVariable)]
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsIntroduceVariable)]
         public void TestAttributeFix2()
         {
             Test(
@@ -101,7 +99,7 @@ int i = V + V;";
         }
 
         [WorkItem(541287)]
-        [Fact, Trait(Traits.Feature, Traits.Features.CodeActionsIntroduceVariable)]
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsIntroduceVariable)]
         public void TestBlockFormatting()
         {
             Test(
@@ -135,7 +133,7 @@ compareTokens: false);
         }
 
         [WorkItem(546465)]
-        [Fact, Trait(Traits.Feature, Traits.Features.CodeActionsIntroduceVariable)]
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsIntroduceVariable)]
         public void TestPreserveTrivia()
         {
             Test(
