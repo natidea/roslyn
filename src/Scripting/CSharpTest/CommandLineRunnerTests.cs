@@ -12,6 +12,7 @@ using Microsoft.CodeAnalysis.Scripting.Test;
 using Microsoft.CodeAnalysis.Test.Utilities;
 using Roslyn.Test.Utilities;
 using Xunit;
+using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.CSharp.Scripting.UnitTests
 {
@@ -81,6 +82,65 @@ Enumerable.WhereSelectArrayIterator<int, int> {{ 9, 16, 25 }}
         }
 
         [Fact]
+        [WorkItem(7133, "http://github.com/dotnet/roslyn/issues/7133")]
+        public void TestDisplayResultsWithCurrentUICulture()
+        {
+            var runner = CreateRunner(input:
+@"using static System.Globalization.CultureInfo;
+DefaultThreadCurrentUICulture = GetCultureInfo(""en-GB"")
+Math.PI
+DefaultThreadCurrentUICulture = GetCultureInfo(""de-DE"")
+Math.PI
+");
+            runner.RunInteractive();
+
+            AssertEx.AssertEqualToleratingWhitespaceDifferences(
+$@"Microsoft (R) Visual C# Interactive Compiler version {CompilerVersion}
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Type ""#help"" for more information.
+> using static System.Globalization.CultureInfo;
+> DefaultThreadCurrentUICulture = GetCultureInfo(""en-GB"")
+[en-GB]
+> Math.PI
+3.1415926535897931
+> DefaultThreadCurrentUICulture = GetCultureInfo(""de-DE"")
+[de-DE]
+> Math.PI
+3,1415926535897931
+>", runner.Console.Out.ToString());
+
+            // Tests that DefaultThreadCurrentUICulture is respected and not DefaultThreadCurrentCulture.
+            runner = CreateRunner(input:
+@"using static System.Globalization.CultureInfo;
+DefaultThreadCurrentUICulture = GetCultureInfo(""en-GB"")
+DefaultThreadCurrentCulture = GetCultureInfo(""en-GB"")
+Math.PI
+DefaultThreadCurrentCulture = GetCultureInfo(""de-DE"")
+Math.PI
+");
+            runner.RunInteractive();
+
+            AssertEx.AssertEqualToleratingWhitespaceDifferences(
+$@"Microsoft (R) Visual C# Interactive Compiler version {CompilerVersion}
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Type ""#help"" for more information.
+> using static System.Globalization.CultureInfo;
+> DefaultThreadCurrentUICulture = GetCultureInfo(""en-GB"")
+[en-GB]
+> DefaultThreadCurrentCulture = GetCultureInfo(""en-GB"")
+[en-GB]
+> Math.PI
+3.1415926535897931
+> DefaultThreadCurrentCulture = GetCultureInfo(""de-DE"")
+[de-DE]
+> Math.PI
+3.1415926535897931
+>", runner.Console.Out.ToString());
+        }
+
+        [Fact]
         public void Void()
         {
             var runner = CreateRunner(input:
@@ -121,9 +181,34 @@ Type ""#help"" for more information.
 5
 > div(10, 0)
 «Red»
-Attempted to divide by zero.
-«DarkRed»
-  + Submission#0.div(Int32 a, Int32 b)
+{new System.DivideByZeroException().Message}
+  + Submission#0.div(int, int)
+«Gray»
+> ", runner.Console.Out.ToString());
+        }
+
+        [Fact]
+        public void ExceptionInGeneric()
+        {
+            var runner = CreateRunner(input:
+@"static class C<T> { public static int div<U>(int a, int b) => a/b; }
+C<string>.div<bool>(10, 2)
+C<string>.div<bool>(10, 0)
+");
+            Assert.Equal(0, runner.RunInteractive());
+
+            Assert.Equal(
+$@"Microsoft (R) Visual C# Interactive Compiler version {CompilerVersion}
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Type ""#help"" for more information.
+> static class C<T> {{ public static int div<U>(int a, int b) => a/b; }}
+> C<string>.div<bool>(10, 2)
+5
+> C<string>.div<bool>(10, 0)
+«Red»
+{new System.DivideByZeroException().Message}
+  + Submission#0.C<T>.div<U>(int, int)
 «Gray»
 > ", runner.Console.Out.ToString());
         }
@@ -352,6 +437,43 @@ error CS0246: The type or namespace name 'Foo' could not be found (are you missi
         }
 
         [Fact]
+        public void Script_NoHostNamespaces()
+        {
+            var runner = CreateRunner(input: "nameof(Microsoft.CodeAnalysis)");
+
+            runner.RunInteractive();
+
+            AssertEx.AssertEqualToleratingWhitespaceDifferences(
+$@"Microsoft (R) Visual C# Interactive Compiler version {CompilerVersion}
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Type ""#help"" for more information.
+> nameof(Microsoft.CodeAnalysis)
+«Red»
+(1,8): error CS0234: The type or namespace name 'CodeAnalysis' does not exist in the namespace 'Microsoft' (are you missing an assembly reference?)
+«Gray»
+> ", runner.Console.Out.ToString());
+        }
+
+        [Fact]
+        public void RelativePath()
+        {
+            using (var directory = new DisposableDirectory(Temp))
+            {
+                const string scriptName = "c.csx";
+                var script = directory.CreateFile(scriptName).WriteAllText("Print(3);");
+                var scriptPath = PathUtilities.CombinePathsUnchecked(PathUtilities.GetFileName(directory.Path), scriptName);
+                var workingDirectory = PathUtilities.GetDirectoryName(directory.Path);
+                Assert.False(PathUtilities.IsAbsolute(scriptPath));
+                var runner = CreateRunner(
+                    args: new[] { scriptPath },
+                    workingDirectory: workingDirectory);
+                runner.RunInteractive();
+                AssertEx.AssertEqualToleratingWhitespaceDifferences("3", runner.Console.Out.ToString());
+            }
+        }
+
+        [Fact]
         public void SourceSearchPaths1()
         {
             var main = Temp.CreateFile(extension: ".csx").WriteAllText(@"
@@ -396,16 +518,16 @@ Print(new C4());
 ");
 
             var dir1 = Temp.CreateDirectory();
-            dir1.CreateFile("1.dll").WriteAllBytes(CreateCompilationWithMscorlib("public class C1 {}", "1").EmitToArray());
+            dir1.CreateFile("1.dll").WriteAllBytes(CreateCSharpCompilationWithMscorlib("public class C1 {}", "1").EmitToArray());
             
             var dir2 = Temp.CreateDirectory();
-            dir2.CreateFile("2.dll").WriteAllBytes(CreateCompilationWithMscorlib("public class C2 {}", "2").EmitToArray());
+            dir2.CreateFile("2.dll").WriteAllBytes(CreateCSharpCompilationWithMscorlib("public class C2 {}", "2").EmitToArray());
 
             var dir3 = Temp.CreateDirectory();
-            dir3.CreateFile("3.dll").WriteAllBytes(CreateCompilationWithMscorlib("public class C3 {}", "3").EmitToArray());
+            dir3.CreateFile("3.dll").WriteAllBytes(CreateCSharpCompilationWithMscorlib("public class C3 {}", "3").EmitToArray());
 
             var dir4 = Temp.CreateDirectory();
-            dir4.CreateFile("4.dll").WriteAllBytes(CreateCompilationWithMscorlib("public class C4 {}", "4").EmitToArray());
+            dir4.CreateFile("4.dll").WriteAllBytes(CreateCSharpCompilationWithMscorlib("public class C4 {}", "4").EmitToArray());
 
             var runner = CreateRunner(new[] { "/r:4.dll", $"/lib:{dir1.Path}", $"/libpath:{dir2.Path}", $"/libpaths:{dir3.Path};{dir4.Path}", main.Path });
 
@@ -416,6 +538,76 @@ C1 { }
 C2 { }
 C3 { }
 C4 { }
+", runner.Console.Out.ToString());
+        }
+
+        [Fact]
+        public void SourceSearchPaths_Change1()
+        {
+            var dir = Temp.CreateDirectory();
+            var main = dir.CreateFile("a.csx").WriteAllText("int X = 1;");
+
+            var runner = CreateRunner(input: 
+$@"SourcePaths
+#load ""a.csx""
+SourcePaths.Add(@""{dir.Path}"")
+#load ""a.csx""
+X
+");
+
+            runner.RunInteractive();
+
+            AssertEx.AssertEqualToleratingWhitespaceDifferences($@"
+Microsoft (R) Visual C# Interactive Compiler version {CompilerVersion}
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Type ""#help"" for more information.
+> SourcePaths
+SearchPaths {{ }}
+> #load ""a.csx""
+«Red»
+(1,7): error CS1504: Source file 'a.csx' could not be opened -- Could not find file.
+«Gray»
+> SourcePaths.Add(@""{dir.Path}"")
+> #load ""a.csx""
+> X
+1
+> 
+", runner.Console.Out.ToString());
+        }
+
+        [Fact]
+        public void ReferenceSearchPaths_Change1()
+        {
+            var dir = Temp.CreateDirectory();
+            var main = dir.CreateFile("C.dll").WriteAllBytes(TestResources.General.C1);
+
+            var runner = CreateRunner(input:
+$@"ReferencePaths
+#r ""C.dll""
+ReferencePaths.Add(@""{dir.Path}"")
+#r ""C.dll""
+new C()
+");
+
+            runner.RunInteractive();
+
+            AssertEx.AssertEqualToleratingWhitespaceDifferences($@"
+Microsoft (R) Visual C# Interactive Compiler version {CompilerVersion}
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Type ""#help"" for more information.
+> ReferencePaths
+SearchPaths {{ }}
+> #r ""C.dll""
+«Red»
+(1,1): error CS0006: Metadata file 'C.dll' could not be found
+«Gray»
+> ReferencePaths.Add(@""{dir.Path}"")
+> #r ""C.dll""
+> new C()
+C {{ }}
+> 
 ", runner.Console.Out.ToString());
         }
 
@@ -459,6 +651,47 @@ C4 { }
         }
 
         [Fact]
+        public void InitialScript1()
+        {
+            var init = Temp.CreateFile(extension: ".csx").WriteAllText(@"
+int X = 1;
+");
+            var runner = CreateRunner(new[] { "/i", init.Path }, input: 
+@"X");
+
+            runner.RunInteractive();
+
+            AssertEx.AssertEqualToleratingWhitespaceDifferences(@"
+> X
+1
+> 
+", runner.Console.Out.ToString());
+        }
+
+        [Fact]
+        public void InitialScript_Error()
+        {
+            var reference = Temp.CreateFile(extension: ".dll").WriteAllBytes(TestResources.General.C1);
+
+            var init = Temp.CreateFile(extension: ".csx").WriteAllText(@"
+1 1
+");
+            var runner = CreateRunner(new[] { $@"/r:""{reference.Path}""", "/i", init.Path }, input:
+@"new C()");
+
+            runner.RunInteractive();
+
+            AssertEx.AssertEqualToleratingWhitespaceDifferences($@"
+«Red»
+{init.Path}(2,3): error CS1002: ; expected
+«Gray»
+> new C()
+C {{ }}
+> 
+", runner.Console.Out.ToString());
+        }
+
+        [Fact]
         public void HelpCommand()
         {
             var runner = CreateRunner(input:
@@ -477,8 +710,84 @@ Keyboard shortcuts:
   Escape        Clear the current submission.
   UpArrow       Replace the current submission with a previous submission.
   DownArrow     Replace the current submission with a subsequent submission (after having previously navigated backwards).
+  Ctrl-C        Exit the REPL.
 REPL commands:
   #help         Display help on available commands and key bindings.
+Script directives:
+  #r            Add a metadata reference to specified assembly and all its dependencies, e.g. #r ""myLib.dll"".
+  #load         Load specified script file and execute it, e.g. #load ""myScript.csx"".
+> ", runner.Console.Out.ToString());
+        }
+
+        [Fact]
+        public void SharedLibCopy_Different()
+        {
+            string libBaseName = "LibBase_" + Guid.NewGuid();
+            string lib1Name = "Lib1_" + Guid.NewGuid();
+            string lib2Name = "Lib2_" + Guid.NewGuid();
+
+            var libBase1 = TestCompilationFactory.CreateCSharpCompilation(@"
+public class LibBase
+{
+    public readonly int X = 1;
+}
+", new[] { TestReferences.NetFx.v4_0_30319.mscorlib }, libBaseName);
+
+            var libBase2 = TestCompilationFactory.CreateCSharpCompilation(@"
+public class LibBase
+{
+    public readonly int X = 2;
+}
+", new[] { TestReferences.NetFx.v4_0_30319.mscorlib }, libBaseName);
+
+            var lib1 = TestCompilationFactory.CreateCSharpCompilation(@"
+public class Lib1
+{
+    public LibBase libBase = new LibBase();
+}
+", new MetadataReference[] { TestReferences.NetFx.v4_0_30319.mscorlib, libBase1.ToMetadataReference() }, lib1Name);
+
+            var lib2 = TestCompilationFactory.CreateCSharpCompilation(@"
+public class Lib2
+{
+    public LibBase libBase = new LibBase();
+}
+", new MetadataReference[] { TestReferences.NetFx.v4_0_30319.mscorlib, libBase1.ToMetadataReference() }, lib2Name);
+
+            var libBase1Image = libBase1.EmitToArray();
+            var libBase2Image = libBase2.EmitToArray();
+            var lib1Image = lib1.EmitToArray();
+            var lib2Image = lib2.EmitToArray();
+
+            var root = Temp.CreateDirectory();
+            var dir1 = root.CreateDirectory("1");
+            var file1 = dir1.CreateFile(lib1Name + ".dll").WriteAllBytes(lib1Image);
+            var fileBase1 = dir1.CreateFile(libBaseName + ".dll").WriteAllBytes(libBase1Image);
+
+            var dir2 = root.CreateDirectory("2");
+            var file2 = dir2.CreateFile(lib2Name + ".dll").WriteAllBytes(lib2Image);
+            var fileBase2 = dir2.CreateFile(libBaseName + ".dll").WriteAllBytes(libBase2Image);
+
+            var runner = CreateRunner(input:
+$@"#r ""{file1.Path}""
+var l1 = new Lib1();
+#r ""{file2.Path}""
+var l2 = new Lib2();
+");
+            runner.RunInteractive();
+
+            AssertEx.AssertEqualToleratingWhitespaceDifferences(
+$@"Microsoft (R) Visual C# Interactive Compiler version {CompilerVersion}
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Type ""#help"" for more information.
+> #r ""{file1.Path}""
+> var l1 = new Lib1();
+> #r ""{file2.Path}""
+> var l2 = new Lib2();
+«Red»
+Assembly '{libBaseName}, Version=0.0.0.0' has already been loaded from '{fileBase1.Path}'. A different assembly with the same name and version can't be loaded: '{fileBase2.Path}'.
+«Gray»
 > ", runner.Console.Out.ToString());
         }
     }

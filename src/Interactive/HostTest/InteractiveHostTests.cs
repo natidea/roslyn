@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Test.Utilities;
 using Microsoft.CodeAnalysis.Editor.CSharp.Interactive;
 using Microsoft.CodeAnalysis.Interactive;
@@ -46,8 +47,6 @@ namespace Microsoft.CodeAnalysis.UnitTests.Interactive
 
             var remoteService = Host.TryGetService();
             Assert.NotNull(remoteService);
-
-            remoteService.SetTestObjectFormattingOptions();
 
             Host.SetPathsAsync(new[] { s_fxDir }, new[] { s_homeDir }, s_homeDir).Wait();
 
@@ -876,22 +875,62 @@ typeof(C).Assembly.GetName()");
 
             Execute(@"
 dynamic d = new ExpandoObject();
+");
+            Execute(@"
 Process p = new Process();
+");
+            Execute(@"
 Expression<Func<int>> e = () => 1;
+");
+            Execute(@"
 var squares = from x in new[] { 1, 2, 3 } select x * x;
+");
+            Execute(@"
 var sb = new StringBuilder();
+");
+            Execute(@"
 var list = new List<int>();
+");
+            Execute(@"
 var stream = new MemoryStream();
 await Task.Delay(10);
+p = new Process();
 
 Console.Write(""OK"")
 ");
 
-            Assert.Equal("", ReadErrorOutputToEnd());
+            AssertEx.AssertEqualToleratingWhitespaceDifferences("", ReadErrorOutputToEnd());
 
             AssertEx.AssertEqualToleratingWhitespaceDifferences(
 $@"Loading context from '{Path.GetFileName(rspFile.Path)}'.
 OK
+", ReadOutputToEnd());
+        }
+
+        [Fact]
+        public void InitialScript_Error()
+        {
+            var initFile = Temp.CreateFile(extension: ".csx").WriteAllText("1 1");
+
+            var rspFile = Temp.CreateFile();
+
+            rspFile.WriteAllText($@"
+/r:System
+/u:System.Diagnostics
+{initFile.Path}
+");
+
+            Host.ResetAsync(new InteractiveHostOptions(initializationFile: rspFile.Path, culture: CultureInfo.InvariantCulture)).Wait();
+
+            Execute("new Process()");
+
+            AssertEx.AssertEqualToleratingWhitespaceDifferences($@"
+{initFile.Path}(1,3): error CS1002: ; expected
+", ReadErrorOutputToEnd());
+
+            AssertEx.AssertEqualToleratingWhitespaceDifferences($@"
+Loading context from '{Path.GetFileName(rspFile.Path)}'.
+[System.Diagnostics.Process]
 ", ReadOutputToEnd());
         }
 
@@ -936,6 +975,18 @@ WriteLine(new Complex(2, 6).Real);
 
             var output = ReadOutputToEnd();
             Assert.Equal("1\r\n2\r\n", output);
+        }
+
+        [Fact]
+        public void Script_NoHostNamespaces()
+        {
+            Execute("nameof(Microsoft.CodeAnalysis)");
+
+            AssertEx.AssertEqualToleratingWhitespaceDifferences(@"
+(1,8): error CS0234: The type or namespace name 'CodeAnalysis' does not exist in the namespace 'Microsoft' (are you missing an assembly reference?)",
+                ReadErrorOutputToEnd());
+
+            Assert.Equal("", ReadOutputToEnd());
         }
 
         [Fact]
@@ -1041,6 +1092,65 @@ new object[] { new Class1(), new Class2(), new Class3() }
             Assert.Equal("[Metadata.ICSProp]\r\n", output);
         }
 
+        [Fact, WorkItem(6457, "https://github.com/dotnet/roslyn/issues/6457")]
+        public void MissingReferencesReuse()
+        {
+            var source = @"
+public class C
+{
+    public System.Diagnostics.Process P;
+}
+";
+
+            var lib = CSharpCompilation.Create(
+"Lib",
+new[] { SyntaxFactory.ParseSyntaxTree(source) },
+new[] { TestReferences.NetFx.v4_0_30319.mscorlib, TestReferences.NetFx.v4_0_30319.System },
+new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+            var libFile = Temp.CreateFile("lib").WriteAllBytes(lib.EmitToArray());
+
+            Execute($@"#r ""{libFile.Path}""");
+            Execute("C c;");
+            Execute("c = new C()");
+
+            var error = ReadErrorOutputToEnd();
+            Assert.Equal("", error);
+
+            var output = ReadOutputToEnd();
+            AssertEx.AssertEqualToleratingWhitespaceDifferences("C { P=null }", output);
+        }
+
+        [Fact, WorkItem(7280, "https://github.com/dotnet/roslyn/issues/7280")]
+        public void AsyncContinueOnDifferentThread()
+        {
+            Execute(@"
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
+Console.Write(Task.Run(() => { Thread.CurrentThread.Join(100); return 42; }).ContinueWith(t => t.Result).Result)");
+            
+            var output = ReadOutputToEnd();
+            var error = ReadErrorOutputToEnd();
+
+            Assert.Equal("42", output);
+            Assert.Empty(error);
+        }
+
+        [Fact]
+        public void Exception()
+        {
+            Execute(@"throw new System.Exception();");
+
+            var output = ReadOutputToEnd();
+            var error = ReadErrorOutputToEnd();
+
+            Assert.Equal("", output);
+            Assert.DoesNotContain("Unexpected", error, StringComparison.OrdinalIgnoreCase);
+            Assert.True(error.StartsWith(new Exception().Message));
+        }
+
         #region Submission result printing - null/void/value.
 
         [Fact]
@@ -1071,6 +1181,14 @@ foo()
 
             output = ReadOutputToEnd();
             Assert.Equal("", output);
+        }
+
+        // TODO (https://github.com/dotnet/roslyn/issues/7976): delete this
+        [WorkItem(7976, "https://github.com/dotnet/roslyn/issues/7976")]
+        [Fact]
+        public void Workaround7976()
+        {
+            Thread.Sleep(TimeSpan.FromSeconds(10));
         }
 
         #endregion

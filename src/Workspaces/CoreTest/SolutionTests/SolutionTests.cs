@@ -3,8 +3,10 @@
 using System;
 using System.Collections.Immutable;
 using System.Composition;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
@@ -82,7 +84,7 @@ namespace Microsoft.CodeAnalysis.UnitTests
         }
 
         [Fact, Trait(Traits.Feature, Traits.Features.Workspace)]
-        [WorkItem(543964, "DevDiv")]
+        [WorkItem(543964, "http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/543964")]
         public void MultipleProjectsWithSameDisplayName()
         {
             var solution = CreateSolution();
@@ -301,7 +303,7 @@ namespace Microsoft.CodeAnalysis.UnitTests
             return solution;
         }
 
-        [WorkItem(636431, "DevDiv")]
+        [WorkItem(636431, "http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/636431")]
         [Fact, Trait(Traits.Feature, Traits.Features.Workspace)]
         public void TestProjectDependencyLoading()
         {
@@ -619,7 +621,7 @@ namespace Microsoft.CodeAnalysis.UnitTests
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         [Fact, Trait(Traits.Feature, Traits.Features.Workspace)]
-        [WorkItem(542736, "DevDiv")]
+        [WorkItem(542736, "http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/542736")]
         public void TestDocumentChangedOnDiskIsNotObserved()
         {
             var text1 = "public class A {}";
@@ -658,7 +660,19 @@ namespace Microsoft.CodeAnalysis.UnitTests
             return workspace.CurrentSolution;
         }
 
-        private void StopObservingAndWaitForReferenceToGo(ObjectReference observed, int delay = 0)
+        [DllImport("dbghelp.dll")]
+        private static extern bool MiniDumpWriteDump(IntPtr hProcess, int ProcessId, IntPtr hFile, int DumpType, IntPtr ExceptionParam, IntPtr UserStreamParam, IntPtr CallbackParam);
+
+        private static void DumpProcess(string dumpFileName)
+        {
+            using (var fs = File.Create(dumpFileName))
+            {
+                var proc = System.Diagnostics.Process.GetCurrentProcess();
+                MiniDumpWriteDump(proc.Handle, proc.Id, fs.SafeFileHandle.DangerousGetHandle(), /*MiniDumpWithFullMemory*/2, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+            }
+        }
+
+        private void StopObservingAndWaitForReferenceToGo(ObjectReference observed, int delay = 0, string dumpFileName = null)
         {
             // stop observing it and let GC reclaim it
             observed.Strong = null;
@@ -674,8 +688,20 @@ namespace Microsoft.CodeAnalysis.UnitTests
 
             const int TimerPrecision = 30;
             var actualTimePassed = DateTime.UtcNow - start + TimeSpan.FromMilliseconds(TimerPrecision);
+            var isTargetCollected = observed.Weak.Target == null;
 
-            Assert.True(observed.Weak.Target == null,
+            if (!isTargetCollected && !string.IsNullOrEmpty(dumpFileName))
+            {
+                if (string.Compare(Path.GetExtension(dumpFileName), ".dmp", StringComparison.OrdinalIgnoreCase) != 0)
+                {
+                    dumpFileName += ".dmp";
+                }
+
+                DumpProcess(dumpFileName);
+                Assert.True(false, $"Target object not collected.  Process dump saved to '{dumpFileName}'");
+            }
+
+            Assert.True(isTargetCollected,
                 string.Format("Target object ({0}) was not collected after {1} ms", observed.Weak.Target, actualTimePassed));
         }
 
@@ -1044,11 +1070,11 @@ End Class";
             TestRecoverableSyntaxTree(sol, did);
         }
 
-        private void TestRecoverableSyntaxTree(Solution sol, DocumentId did)
+        private void TestRecoverableSyntaxTree(Solution sol, DocumentId did, [CallerMemberName] string callingTest = null)
         {
             // get it async and wait for it to get GC'd
             var observed = GetObservedSyntaxTreeRootAsync(sol, did);
-            StopObservingAndWaitForReferenceToGo(observed);
+            StopObservingAndWaitForReferenceToGo(observed, dumpFileName: callingTest);
 
             var doc = sol.GetDocument(did);
 
@@ -1067,7 +1093,7 @@ End Class";
 
             // get it async and wait for it to get GC'd
             var observed2 = GetObservedSyntaxTreeRootAsync(doc2.Project.Solution, did);
-            StopObservingAndWaitForReferenceToGo(observed2);
+            StopObservingAndWaitForReferenceToGo(observed2, dumpFileName: callingTest);
 
             // access the tree & root again (recover it)
             var tree2 = doc2.GetSyntaxTreeAsync().Result;
@@ -1247,7 +1273,7 @@ End Class";
         }
 
         [Fact]
-        [WorkItem(666263, "DevDiv")]
+        [WorkItem(666263, "http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/666263")]
         public void TestWorkspaceDiagnosticHasDebuggerText()
         {
             var solution = new AdhocWorkspace().CurrentSolution;
@@ -1345,7 +1371,7 @@ public class C : A {
             Assert.Equal(pid1, projectForBaseType.Id);
         }
 
-        [WorkItem(1088127, "DevDiv")]
+        [WorkItem(1088127, "http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/1088127")]
         [Fact]
         public void TestEncodingRetainedAfterTreeChanged()
         {

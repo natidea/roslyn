@@ -3,8 +3,11 @@
 using System;
 using System.Composition;
 using Microsoft.CodeAnalysis.Editor.Shared.Utilities;
+using Microsoft.CodeAnalysis.Extensions;
 using Microsoft.CodeAnalysis.Host;
 using Microsoft.CodeAnalysis.Internal.Log;
+using Microsoft.CodeAnalysis.Options;
+using Microsoft.CodeAnalysis.Shared.Options;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 
@@ -17,13 +20,18 @@ namespace Microsoft.VisualStudio.LanguageServices
     [Export, Shared]
     internal sealed class VirtualMemoryNotificationListener : ForegroundThreadAffinitizedObject, IVsBroadcastMessageEvents
     {
-        private WorkspaceCacheService _workspaceCacheService;
+        private readonly VisualStudioWorkspace _workspace;
+        private readonly WorkspaceCacheService _workspaceCacheService;
+
+        private bool _alreadyLogged;
 
         [ImportingConstructor]
         private VirtualMemoryNotificationListener(
             SVsServiceProvider serviceProvider,
             VisualStudioWorkspace workspace) : base(assertIsForeground: true)
         {
+            _workspace = workspace;
+
             _workspaceCacheService = workspace.Services.GetService<IWorkspaceCacheService>() as WorkspaceCacheService;
             if (_workspaceCacheService == null)
             {
@@ -52,10 +60,25 @@ namespace Microsoft.VisualStudio.LanguageServices
                 case VSConstants.VSM_VIRTUALMEMORYLOW:
                 case VSConstants.VSM_VIRTUALMEMORYCRITICAL:
                     {
-                        // record that we had hit critical memory barrier
-                        Logger.Log(FunctionId.VirtualMemory_MemoryLow, KeyValueLogMessage.Create(m => m["Memory"] = msg));
+                        if (!_alreadyLogged)
+                        {
+                            // record that we had hit critical memory barrier
+                            Logger.Log(FunctionId.VirtualMemory_MemoryLow, KeyValueLogMessage.Create(m => m["Memory"] = msg));
+                            _alreadyLogged = true;
+                        }
 
                         _workspaceCacheService.FlushCaches();
+
+                        // turn off full solution analysis
+                        if (_workspace.Options.GetOption(RuntimeOptions.FullSolutionAnalysis))
+                        {
+                            _workspace.Services.GetService<IOptionService>().SetOptions(_workspace.Options.WithChangedOption(RuntimeOptions.FullSolutionAnalysis, false));
+
+                            // let user know full analysis is turned off due to memory concern
+                            // no close info bar action
+                            _workspace.Services.GetService<IErrorReportingService>().ShowErrorInfo(ServicesVSResources.FullSolutionAnalysisOff, () => { });
+                        }
+
                         break;
                     }
             }

@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.Editor.Shared.Extensions;
 using Microsoft.CodeAnalysis.Editor.Shared.Utilities;
 using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.LanguageServices;
@@ -146,7 +145,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.RenameTracking
                 {
                     var syntaxFactsService = document.Project.LanguageServices.GetService<ISyntaxFactsService>();
                     var syntaxTree = await document.GetSyntaxTreeAsync(_cancellationToken).ConfigureAwait(false);
-                    var token = syntaxTree.GetTouchingWord(snapshotSpan.Start.Position, syntaxFactsService, _cancellationToken);
+                    var token = await syntaxTree.GetTouchingWordAsync(snapshotSpan.Start.Position, syntaxFactsService, _cancellationToken).ConfigureAwait(false);
 
                     // The OriginalName is determined with a simple textual check, so for a
                     // statement such as "Dim [x = 1" the textual check will return a name of "[x".

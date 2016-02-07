@@ -7,6 +7,7 @@ namespace Microsoft.CodeAnalysis.Extensions
 {
     internal interface IErrorReportingService : IWorkspaceService
     {
-        void ShowErrorInfoForCodeFix(string codefixName, Action OnEnableClicked, Action OnEnableAndIgnoreClicked);
+        void ShowErrorInfoForCodeFix(string codefixName, Action OnEnableClicked, Action OnEnableAndIgnoreClicked, Action OnClose);
+        void ShowErrorInfo(string title, Action OnClose);
     }
 }

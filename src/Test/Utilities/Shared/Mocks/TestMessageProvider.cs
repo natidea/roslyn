@@ -29,6 +29,11 @@ namespace Roslyn.Test.Utilities
             throw new NotImplementedException();
         }
 
+        public override int ERR_InvalidPathMap
+        {
+            get { throw new NotImplementedException(); }
+        }
+
         public override int ERR_FailedToCreateTempFile
         {
             get { throw new NotImplementedException(); }
@@ -343,6 +348,14 @@ namespace Roslyn.Test.Utilities
         }
 
         public override int ERR_BadCompilationOptionValue
+        {
+            get
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        public override int ERR_TooManyUserStrings
         {
             get
             {

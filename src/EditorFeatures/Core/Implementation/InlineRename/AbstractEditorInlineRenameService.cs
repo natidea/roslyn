@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.FindSymbols;
@@ -213,7 +212,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.InlineRename
         {
             var syntaxTree = document.GetSyntaxTreeAsync(cancellationToken).WaitAndGetResult(cancellationToken);
             var syntaxFacts = document.Project.LanguageServices.GetService<ISyntaxFactsService>();
-            var token = syntaxTree.GetTouchingWord(position, syntaxFacts, cancellationToken, findInsideTrivia: true);
+            var token = syntaxTree.GetTouchingWordAsync(position, syntaxFacts, cancellationToken, findInsideTrivia: true).WaitAndGetResult(cancellationToken);
 
             return token;
         }

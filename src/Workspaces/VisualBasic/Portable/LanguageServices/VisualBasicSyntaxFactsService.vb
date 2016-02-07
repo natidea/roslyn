@@ -625,13 +625,21 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         End Function
 
         Public Function IsMethodLevelMember(node As SyntaxNode) As Boolean Implements ISyntaxFactsService.IsMethodLevelMember
-            If TypeOf node Is MethodBlockBaseSyntax AndAlso
-                Not TypeOf node.Parent Is PropertyBlockSyntax AndAlso
-                Not TypeOf node.Parent Is EventBlockSyntax Then
+
+            ' Note: Derived types of MethodBaseSyntax are expanded explicitly, since PropertyStatementSyntax and
+            ' EventStatementSyntax will NOT be parented by MethodBlockBaseSyntax.  Additionally, there are things
+            ' like AccessorStatementSyntax and DelegateStatementSyntax that we never want to tread as method level
+            ' members.
+
+            If TypeOf node Is MethodStatementSyntax AndAlso Not TypeOf node.Parent Is MethodBlockBaseSyntax Then
                 Return True
             End If
 
-            If TypeOf node Is MethodBaseSyntax AndAlso Not TypeOf node.Parent Is MethodBlockBaseSyntax Then
+            If TypeOf node Is SubNewStatementSyntax AndAlso Not TypeOf node.Parent Is MethodBlockBaseSyntax Then
+                Return True
+            End If
+
+            If TypeOf node Is OperatorStatementSyntax AndAlso Not TypeOf node.Parent Is MethodBlockBaseSyntax Then
                 Return True
             End If
 
@@ -643,7 +651,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                 Return True
             End If
 
-            Return TypeOf node Is EventBlockSyntax OrElse
+            If TypeOf node Is DeclareStatementSyntax Then
+                Return True
+            End If
+
+            Return TypeOf node Is ConstructorBlockSyntax OrElse
+                   TypeOf node Is MethodBlockSyntax OrElse
+                   TypeOf node Is OperatorBlockSyntax OrElse
+                   TypeOf node Is EventBlockSyntax OrElse
                    TypeOf node Is PropertyBlockSyntax OrElse
                    TypeOf node Is EnumMemberDeclarationSyntax OrElse
                    TypeOf node Is FieldDeclarationSyntax
@@ -1162,5 +1177,13 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
 
             Return Nothing
         End Function
-    End Class
+
+        Public Function GetNameForArgument(argument As SyntaxNode) As String Implements ISyntaxFactsService.GetNameForArgument
+           If TryCast(argument, ArgumentSyntax)?.IsNamed Then
+                Return DirectCast(argument, SimpleArgumentSyntax).NameColonEquals.Name.Identifier.ValueText
+            End If
+
+            Return String.Empty
+        End Function
+        End Class
 End Namespace

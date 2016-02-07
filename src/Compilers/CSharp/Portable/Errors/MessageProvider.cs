@@ -126,6 +126,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         // command line:
         public override int ERR_ExpectedSingleScript { get { return (int)ErrorCode.ERR_ExpectedSingleScript; } }
         public override int ERR_OpenResponseFile { get { return (int)ErrorCode.ERR_OpenResponseFile; } }
+        public override int ERR_InvalidPathMap { get { return (int)ErrorCode.ERR_InvalidPathMap; } }
         public override int FTL_InputFileNameTooLong { get { return (int)ErrorCode.FTL_InputFileNameTooLong; } }
         public override int ERR_FileNotFound { get { return (int)ErrorCode.ERR_FileNotFound; } }
         public override int ERR_NoSourceFile { get { return (int)ErrorCode.ERR_NoSourceFile; } }
@@ -200,6 +201,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         // PE Writer:
         public override int ERR_MetadataNameTooLong { get { return (int)ErrorCode.ERR_MetadataNameTooLong; } }
         public override int ERR_EncReferenceToAddedMember { get { return (int)ErrorCode.ERR_EncReferenceToAddedMember; } }
+        public override int ERR_TooManyUserStrings { get { return (int)ErrorCode.ERR_TooManyUserStrings; } }
 
         public override void ReportInvalidAttributeArgument(DiagnosticBag diagnostics, SyntaxNode attributeSyntax, int parameterIndex, AttributeData attribute)
         {

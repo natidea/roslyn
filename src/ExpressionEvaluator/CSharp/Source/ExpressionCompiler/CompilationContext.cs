@@ -297,6 +297,12 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
                             var typeNameDecoder = new EETypeNameDecoder(Compilation, (PEModuleSymbol)_currentFrame.ContainingModule);
                             foreach (var alias in aliases)
                             {
+                                if (alias.IsReturnValueWithoutIndex())
+                                {
+                                    Debug.Assert(aliases.Count(a => a.Kind == DkmClrAliasKind.ReturnValue) > 1);
+                                    continue;
+                                }
+
                                 var local = PlaceholderLocalSymbol.Create(
                                     typeNameDecoder,
                                     _currentFrame,
@@ -641,14 +647,7 @@ namespace Microsoft.CodeAnalysis.CSharp.ExpressionEvaluator
                 @namespace = @namespace.ContainingNamespace;
             }
 
-            var binder = (new BuckStopsHereBinder(compilation)).WithAdditionalFlags(
-                BinderFlags.SuppressObsoleteChecks |
-                BinderFlags.IgnoreAccessibility |
-                BinderFlags.UnsafeRegion |
-                BinderFlags.UncheckedRegion |
-                BinderFlags.AllowManagedAddressOf |
-                BinderFlags.AllowAwaitInUnsafeContext |
-                BinderFlags.IgnoreCorLibraryDuplicatedTypes);
+            Binder binder = new BuckStopsHereBinder(compilation);
             var hasImports = !importRecordGroups.IsDefaultOrEmpty;
             var numImportStringGroups = hasImports ? importRecordGroups.Length : 0;
             var currentStringGroup = numImportStringGroups - 1;

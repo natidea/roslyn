@@ -82,7 +82,7 @@ namespace Microsoft.Cci
             }
         }
 
-        internal ContentId ContentIdFromLog()
+        internal byte[] GetLogHash()
         {
             Debug.Assert(_logData != null);
 
@@ -104,7 +104,7 @@ namespace Microsoft.Cci
             Debug.Assert(remaining == 0);
 
             _logData.Clear();
-            return ContentId.FromHash(_hashAlgorithm.Hash.ToImmutableArray());
+            return _hashAlgorithm.Hash;
         }
 
         internal void Close()
@@ -232,7 +232,7 @@ namespace Microsoft.Cci
         private readonly Func<object> _symWriterFactory;
         private ComMemoryStream _pdbStream;
         private MetadataWriter _metadataWriter;
-        private ISymUnmanagedWriter2 _symWriter;
+        private ISymUnmanagedWriter5 _symWriter;
 
         private readonly Dictionary<DebugSourceDocument, ISymUnmanagedDocumentWriter> _documentMap = new Dictionary<DebugSourceDocument, ISymUnmanagedDocumentWriter>();
 
@@ -805,7 +805,7 @@ namespace Microsoft.Cci
         {
             try
             {
-                var symWriter = (ISymUnmanagedWriter2)(_symWriterFactory != null ? _symWriterFactory() : CreateSymWriterWorker());
+                var symWriter = (ISymUnmanagedWriter5)(_symWriterFactory != null ? _symWriterFactory() : CreateSymWriterWorker());
 
                 // Correctness: If the stream is not specified or if it is non-empty the SymWriter appends data to it (provided it contains valid PDB)
                 // and the resulting PDB has Age = existing_age + 1.
@@ -813,13 +813,12 @@ namespace Microsoft.Cci
 
                 if (_deterministic)
                 {
-                    var deterministicSymWriter = symWriter as ISymUnmanagedWriter6;
-                    if (deterministicSymWriter == null)
+                    if (!(symWriter is ISymUnmanagedWriter7))
                     {
                         throw new NotSupportedException(CodeAnalysisResources.SymWriterNotDeterministic);
                     }
 
-                    deterministicSymWriter.InitializeDeterministic(new PdbMetadataWrapper(metadataWriter), _pdbStream);
+                    ((ISymUnmanagedWriter7)symWriter).InitializeDeterministic(new PdbMetadataWrapper(metadataWriter), _pdbStream);
                 }
                 else
                 {
@@ -839,20 +838,20 @@ namespace Microsoft.Cci
         {
             if (_deterministic)
             {
-                // Call to GetDebugInfo fails for SymWriter initialized using InitializeDeterministic.
-                // We already have all the info we need though.
-                var id = _callLogger.ContentIdFromLog();
+                // rewrite GUID and timestamp in the PDB with hash of a has of the log content:
+                byte[] hash = _callLogger.GetLogHash();
+
                 try
                 {
-                    Debug.Assert(BitConverter.IsLittleEndian);
-                    ((ISymUnmanagedWriter100)_symWriter).SetSignature(BitConverter.ToUInt32(id.Stamp, 0), new Guid(id.Guid));
+                    fixed (byte* hashPtr = &hash[0])
+                    {
+                        ((ISymUnmanagedWriter7)_symWriter).UpdateSignatureByHashingContent(hashPtr, hash.Length);
+                    }
                 }
                 catch (Exception ex)
                 {
                     throw new PdbWritingException(ex);
                 }
-
-                return id;
             }
 
             // See symwrite.cpp - the data byte[] doesn't depend on the content of metadata tables or IL.
@@ -1224,7 +1223,7 @@ namespace Microsoft.Cci
             {
                 try
                 {
-                    _symWriter.DefineConstant2(name, value, constantSignatureToken);
+                    DefineLocalConstantImpl(name, value, constantSignatureToken);
                     if (_callLogger.LogOperation(OP.DefineConstant2))
                     {
                         _callLogger.LogArgument(name);
@@ -1237,6 +1236,13 @@ namespace Microsoft.Cci
                     throw new PdbWritingException(ex);
                 }
             }
+        }
+
+        private unsafe void DefineLocalConstantImpl(string name, object value, uint sigToken)
+        {
+            VariantStructure variant = new VariantStructure();
+            Marshal.GetNativeVariantForObject(value, new IntPtr(&variant));
+            _symWriter.DefineConstant2(name, variant, sigToken);
         }
 
         private void DefineLocalStringConstant(string name, string value, uint constantSignatureToken)
@@ -1257,7 +1263,7 @@ namespace Microsoft.Cci
 
             try
             {
-                _symWriter.DefineConstant2(name, value, constantSignatureToken);
+                DefineLocalConstantImpl(name, value, constantSignatureToken);
                 if (_callLogger.LogOperation(OP.DefineConstant2))
                 {
                     _callLogger.LogArgument(name);

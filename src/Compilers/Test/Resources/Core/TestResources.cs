@@ -123,6 +123,15 @@ namespace TestResources.MetadataTests
 
         private static byte[] _Obfuscated2;
         public static byte[] Obfuscated2 => ResourceLoader.GetOrCreateResource(ref _Obfuscated2, "MetadataTests.Invalid.Obfuscated2.dll");
+
+        public static class Signatures
+        {
+            private static byte[] _SignatureCycle2;
+            public static byte[] SignatureCycle2 => ResourceLoader.GetOrCreateResource(ref _SignatureCycle2, "MetadataTests.Invalid.Signatures.SignatureCycle2.exe");
+
+            private static byte[] _TypeSpecInWrongPlace;
+            public static byte[] TypeSpecInWrongPlace => ResourceLoader.GetOrCreateResource(ref _TypeSpecInWrongPlace, "MetadataTests.Invalid.Signatures.TypeSpecInWrongPlace.exe");
+        }
     }
 
     public static class NetModule01
@@ -177,6 +186,9 @@ namespace TestResources
 
         private static byte[] _DelegatesWithoutInvoke;
         public static byte[] DelegatesWithoutInvoke => ResourceLoader.GetOrCreateResource(ref _DelegatesWithoutInvoke, "SymbolsTests.Delegates.DelegatesWithoutInvoke.dll");
+
+        private static byte[] _shiftJisSource;
+        public static byte[] ShiftJisSource => ResourceLoader.GetOrCreateResource(ref _shiftJisSource, "Encoding.sjis.cs");
 
         private static byte[] _Events;
         public static byte[] Events => ResourceLoader.GetOrCreateResource(ref _Events, "SymbolsTests.Events.dll");
@@ -552,6 +564,9 @@ namespace TestResources.SymbolsTests
 
         private static byte[] _Pia5;
         public static byte[] Pia5 => ResourceLoader.GetOrCreateResource(ref _Pia5, "SymbolsTests.NoPia.Pia5.dll");
+
+        private static byte[] _ParametersWithoutNames;
+        public static byte[] ParametersWithoutNames => ResourceLoader.GetOrCreateResource(ref _ParametersWithoutNames, "SymbolsTests.NoPia.ParametersWithoutNames.dll");
     }
 }
 

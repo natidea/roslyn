@@ -138,6 +138,7 @@ namespace Microsoft.CodeAnalysis
         // command line:
         public abstract int ERR_ExpectedSingleScript { get; }
         public abstract int ERR_OpenResponseFile { get; }
+        public abstract int ERR_InvalidPathMap { get; }
         public abstract int FTL_InputFileNameTooLong { get; }
         public abstract int ERR_FileNotFound { get; }
         public abstract int ERR_NoSourceFile { get; }
@@ -201,6 +202,7 @@ namespace Microsoft.CodeAnalysis
         // PE writing:
         public abstract int ERR_MetadataNameTooLong { get; }
         public abstract int ERR_EncReferenceToAddedMember { get; }
+        public abstract int ERR_TooManyUserStrings { get; }
 
         public abstract void ReportInvalidAttributeArgument(DiagnosticBag diagnostics, SyntaxNode attributeSyntax, int parameterIndex, AttributeData attribute);
         public abstract void ReportInvalidNamedArgument(DiagnosticBag diagnostics, SyntaxNode attributeSyntax, int namedArgumentIndex, ITypeSymbol attributeClass, string parameterName);

@@ -160,6 +160,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             End Get
         End Property
 
+        Public Overrides ReadOnly Property ERR_InvalidPathMap As Integer
+            Get
+                Return ERRID.ERR_InvalidPathMap
+            End Get
+        End Property
+
         Public Overrides ReadOnly Property FTL_InputFileNameTooLong As Integer
             Get
                 Return ERRID.FTL_InputFileNameTooLong
@@ -483,6 +489,12 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
         Public Overrides ReadOnly Property ERR_EncReferenceToAddedMember As Integer
             Get
                 Return ERRID.ERR_EncReferenceToAddedMember
+            End Get
+        End Property
+
+        Public Overrides ReadOnly Property ERR_TooManyUserStrings As Integer
+            Get
+                Return ERRID.ERR_TooManyUserStrings
             End Get
         End Property
     End Class

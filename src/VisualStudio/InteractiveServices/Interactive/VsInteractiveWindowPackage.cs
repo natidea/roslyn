@@ -73,9 +73,8 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
         {
             if (rguidPersistenceSlot == ToolWindowId)
             {
-                var result = _interactiveWindowProvider.Create((int)id);
-
-                return (result != null) ? VSConstants.S_OK : VSConstants.E_FAIL;
+                _interactiveWindowProvider.Create((int)id);
+                return VSConstants.S_OK;
             }
 
             return VSConstants.E_FAIL;
@@ -86,7 +85,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
             var resetInteractiveFromProjectCommand = new OleMenuCommand(
                 (sender, args) =>
                 {
-                    var resetInteractive = new ResetInteractive(
+                    var resetInteractive = new VsResetInteractive(
                         (DTE)this.GetService(typeof(SDTE)),
                         _componentModel,
                         (IVsMonitorSelection)this.GetService(typeof(SVsShellMonitorSelection)),
@@ -96,7 +95,16 @@ namespace Microsoft.VisualStudio.LanguageServices.Interactive
 
                     var vsInteractiveWindow = _interactiveWindowProvider.Open(instanceId: 0, focus: true);
 
-                    resetInteractive.Execute(vsInteractiveWindow, LanguageName + " Interactive");
+                    EventHandler focusWindow = null;
+                    focusWindow = (s, e) =>
+                    {
+                        // We have to set focus to the Interactive Window *after* the wait indicator is dismissed.
+                        vsInteractiveWindow.Show(focus: true);
+                        resetInteractive.ExecutionCompleted -= focusWindow;
+                    };
+
+                    resetInteractive.Execute(vsInteractiveWindow.InteractiveWindow, LanguageName + " Interactive");
+                    resetInteractive.ExecutionCompleted += focusWindow;
                 },
                 GetResetInteractiveFromProjectCommandID());
 
